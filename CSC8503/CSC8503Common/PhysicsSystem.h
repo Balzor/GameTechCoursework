@@ -6,6 +6,7 @@ namespace NCL {
 	namespace CSC8503 {
 		class PhysicsSystem	{
 		public:
+			
 			PhysicsSystem(GameWorld& g);
 			~PhysicsSystem();
 
@@ -22,6 +23,10 @@ namespace NCL {
 			}
 
 			void SetGravity(const Vector3& g);
+
+			std::set<GameObject*>& GetTriggerList() {
+				return triggerObj;
+			}
 		protected:
 			void BasicCollisionDetection();
 			void BroadPhase();
@@ -47,6 +52,8 @@ namespace NCL {
 			float	globalDamping;
 			float	frameDT;
 
+
+			std::set<GameObject*> triggerObj;
 			std::set<CollisionDetection::CollisionInfo> allCollisions;
 			std::set<CollisionDetection::CollisionInfo>		broadphaseCollisions;
 			std::vector<CollisionDetection::CollisionInfo>	broadphaseCollisionsVec;
@@ -55,4 +62,3 @@ namespace NCL {
 		};
 	}
 }
-

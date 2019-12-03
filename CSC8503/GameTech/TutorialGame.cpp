@@ -91,7 +91,7 @@ void TutorialGame::UpdateGame(float dt) {
 	world->UpdateWorld(dt);
 	renderer->Update(dt);
 	physics->Update(dt);
-
+	
 	Debug::FlushRenderables();
 	renderer->Render();
 }
@@ -153,7 +153,9 @@ void TutorialGame::LockedObjectMovement() {
 
 	Vector3 fwdAxis = Vector3::Cross(Vector3(0, 20, 0), rightAxis);
 	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::E)) {
-		
+		for (GameObject* obj : physics->GetTriggerList()) {
+			obj->GetPhysicsObject()->AddForce(fwdAxis * 100);
+		}
 	}
 
 	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::A)) {//LEFT
@@ -174,7 +176,13 @@ void TutorialGame::LockedObjectMovement() {
 	}
 
 	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::S)) {//BWRD
-		selectionObject->GetPhysicsObject()->AddForce(-fwdAxis);
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SHIFT)) {
+			selectionObject->GetPhysicsObject()->AddForce(-fwdAxis*10);
+
+		}
+		else {
+			selectionObject->GetPhysicsObject()->AddForce(-fwdAxis);
+		}
 	}
 	//fly
 	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SPACE)) {
@@ -186,8 +194,11 @@ void TutorialGame::LockedObjectMovement() {
 		}
 	}
 	
-
-	
+	//trigger->GetTransform().SetWorldOrientation(lockedObject->GetTransform().GetWorldOrientation());
+	trigger->GetTransform().SetParent(&lockedObject->GetTransform());
+	//Vector3 offset = trigger->GetTransform().GetLocalOrientation() * Vector3(0, 0, 70);
+	trigger->GetTransform().SetLocalPosition(Vector3(0, 2, 25));
+	//(lockedObject->GetTransform().GetLocalPosition()) + offset)
 }
 bool d3 = false;
 void  TutorialGame::LockedCameraMovement() {
@@ -209,10 +220,13 @@ void  TutorialGame::LockedCameraMovement() {
 		Quaternion objOri = lockedObject->GetTransform().GetWorldOrientation();
 		Vector3 objPos = lockedObject->GetTransform().GetWorldPosition();
 
+		
+
 		Quaternion q = Quaternion::EulerAnglesToQuaternion(-pitchLocked, yawLocked, 0);
 		Quaternion n = objOri * q;
 		lockedObject->GetTransform().SetLocalOrientation(n);
 
+		
 
 		Vector3 npos = n *  Vector3(0, 10 , -30);
 		Vector3 camPos = objPos + npos;
@@ -222,6 +236,7 @@ void  TutorialGame::LockedCameraMovement() {
 
 		Quaternion q1(modelMat);
 		Vector3 angles = q1.ToEuler(); //nearly there now!
+
 
 		world->GetMainCamera()->SetPosition(camPos);
 		world->GetMainCamera()->SetPitch(angles.x);
@@ -394,7 +409,7 @@ GameObject* TutorialGame::AddFloorToWorld(const Vector3& position) {
 
 	floor->SetRenderObject(new RenderObject(&floor->GetTransform(), cubeMesh, basicTex, basicShader));
 	floor->SetPhysicsObject(new PhysicsObject(&floor->GetTransform(), floor->GetBoundingVolume(),2.0f));
-
+	floor->GetRenderObject()->SetColour(Vector4(0.87, 0.59, .12, 1));
 	floor->GetPhysicsObject()->SetInverseMass(0);
 	floor->GetPhysicsObject()->InitCubeInertia();
 
@@ -450,6 +465,23 @@ GameObject* TutorialGame::AddCubeToWorld(const Vector3& position, Vector3 dimens
 
 	return cube;
 }
+GameObject* TutorialGame::AddTriggerToWorld(const Vector3& position, Vector3 dimensions) {
+	GameObject* cube = new GameObject("trigger");
+
+	AABBVolume* volume = new AABBVolume(dimensions);
+
+	cube->SetBoundingVolume((CollisionVolume*)volume);
+
+	cube->GetTransform().SetWorldPosition(position);
+	cube->GetTransform().SetWorldScale(dimensions);
+
+	//cube->SetRenderObject(new RenderObject(&cube->GetTransform(), cubeMesh, basicTex, basicShader));
+	cube->SetPhysicsObject(new PhysicsObject(&cube->GetTransform(), cube->GetBoundingVolume(),0.0f));
+
+	world->AddGameObject(cube);
+
+	return cube;
+}
 
 GameObject* TutorialGame::AddGooseToWorld(const Vector3& position)
 {
@@ -476,6 +508,7 @@ GameObject* TutorialGame::AddGooseToWorld(const Vector3& position)
 	lockedObject = goose;
 	selectionObject = goose;
 
+	trigger = AddTriggerToWorld(position, Vector3(5, 3, 20));
 	return goose;
 }
 
@@ -549,9 +582,11 @@ GameObject* TutorialGame::AddAppleToWorld(const Vector3& position) {
 
 	apple->SetRenderObject(new RenderObject(&apple->GetTransform(), appleMesh, nullptr, basicShader));
 	apple->SetPhysicsObject(new PhysicsObject(&apple->GetTransform(), apple->GetBoundingVolume(),0.3f));
-
+	apple->GetRenderObject()->SetColour(Vector4(1, 0, 0, 1));
 	apple->GetPhysicsObject()->SetInverseMass(1.0f);
 	apple->GetPhysicsObject()->InitSphereInertia();
+
+	//apple->SetRenderObject(new RenderObject(&apple->GetTransform())
 
 	world->AddGameObject(apple);
 
@@ -583,7 +618,6 @@ void TutorialGame::InitMixedGridWorld(int numRows, int numCols, float rowSpacing
 			}
 		}
 	}
-	//AddFloorToWorld(Vector3(0, -10, 0));
 }
 
 void TutorialGame::InitCubeGridWorld(int numRows, int numCols, float rowSpacing, float colSpacing, const Vector3& cubeDims) {

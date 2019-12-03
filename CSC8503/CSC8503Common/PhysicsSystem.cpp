@@ -47,6 +47,7 @@ This is the core of the physics engine update
 
 */
 void PhysicsSystem::Update(float dt) {
+	triggerObj.clear();
 	GameTimer testTimer;
 	testTimer.GetTimeDeltaSeconds();
 
@@ -168,16 +169,31 @@ void PhysicsSystem::BasicCollisionDetection() {
 		if ((*i) -> GetPhysicsObject() == nullptr) {
 			continue;
 		}
+		
 		for (auto j = i + 1; j != last; ++j) {
 			if ((*j) -> GetPhysicsObject() == nullptr) {
 				continue;
 			}
 			CollisionDetection::CollisionInfo info;
 			if (CollisionDetection::ObjectIntersection(*i, *j, info)) {
+				if ((*i)->GetName() == "trigger" || ((*j)->GetName() == "trigger" )){
+					info.framesLeft = numCollisionFrames;
+					if ((*i)->GetName() == "trigger") {
+						triggerObj.insert(*j);
+					}
+					else {
+						triggerObj.insert(*i);
+					}
+					
+				}
+				else {
+					ImpulseResolveCollision(*info.a, *info.b, info.point);
+					info.framesLeft = numCollisionFrames;
+					allCollisions.insert(info);
+				}
 				//std::cout << " Collision between " << (*i) -> GetName()<< " and " << (*j) -> GetName() << std::endl;
-				ImpulseResolveCollision(*info.a, *info.b, info.point);
-				info.framesLeft = numCollisionFrames;
-				allCollisions.insert(info);
+				
+				
 				//std::cout << (*j)->GetName() << std::endl;
 			}
 		}
