@@ -84,7 +84,20 @@ void TutorialGame::UpdateGame(float dt) {
 	else {
 		Debug::Print("(G)ravity off", Vector2(10, 40));
 	}
-
+	if (lockedObject->GetTransform().GetLocalPosition().y < -25) {
+		InitWorld();
+		//Respawn();
+	}
+	if (ch1!=nullptr) {
+		if (ch1->GetTransform().GetLocalPosition().y <= -30) {
+			//world->RemoveGameObject(ch1);
+			ch1 = nullptr;
+			killCounter++;
+			//return;
+		}
+	}
+	
+	
 	SelectObject();
 	MoveSelectedObject();
 
@@ -104,11 +117,11 @@ void TutorialGame::CreateObjects() {
 void TutorialGame::UpdateKeys() {
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F1)) {
 		InitWorld(); //We can reset the simulation at any time with F1
-		selectionObject = nullptr;
+		//selectionObject = nullptr;
 	}
 
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F2)) {
-		InitCamera(); //F2 will reset the camera to a specific default place
+		//InitCamera(); //F2 will reset the camera to a specific default place
 	}
 
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::G)) {
@@ -187,7 +200,7 @@ void TutorialGame::LockedObjectMovement() {
 	//fly
 	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SPACE)) {
 		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SHIFT)) {
-			selectionObject->GetPhysicsObject()->AddForce(Vector3(0, -50, 0));
+			selectionObject->GetPhysicsObject()->AddForce(Vector3(0, -100, 0));
 		}
 		else {
 			selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 50, 0));
@@ -345,6 +358,7 @@ line - after the third, they'll be able to twist under torque aswell.
 */
 
 void TutorialGame::MoveSelectedObject() {
+	renderer->DrawString("Humans killed: " + std::to_string(killCounter), Vector2(10, 60));
 	renderer -> DrawString(" Click Force :" + std::to_string(forceMagnitude),Vector2(10, 20)); // Draw debug text at 10 ,20
 	forceMagnitude += Window::GetMouse() -> GetWheelMovement() * 100.0f;
 	
@@ -387,9 +401,15 @@ void TutorialGame::InitWorld() {
 	AddCharacterToWorld(Vector3(45, 2, 0));
 
 	//AddSphereToWorld(Vector3(10, 5, 0), 1.0f);
+	AddIslandToWorld(Vector3(200, -18, 200));
+	AddFloorToWorld(Vector3(0, -20, 0), Vector3(500, 2, 500));
+	AddMiniFloorToWorld(Vector3(0, -19, 0), Vector3(20, 0.1, 50),Vector4(0.25,0.47,0.30,1));
 
-	AddFloorToWorld(Vector3(0, -20, 0));
+	AddTreeToWorld(Vector3(0, -18, 0));
+
+	AddTrampolineToWorld(Vector3(50, -18, 50));
 }
+
 
 //From here on it's functions to add in objects to the world!
 
@@ -398,17 +418,17 @@ void TutorialGame::InitWorld() {
 A single function to add a large immoveable cube to the bottom of our world
 
 */
-GameObject* TutorialGame::AddFloorToWorld(const Vector3& position) {
+GameObject* TutorialGame::AddFloorToWorld(const Vector3& position, const Vector3& size) {
 	GameObject* floor = new GameObject("floor");
 
-	Vector3 floorSize = Vector3(100, 2, 100);
+	Vector3 floorSize = size;
 	AABBVolume* volume = new AABBVolume(floorSize);
 	floor->SetBoundingVolume((CollisionVolume*)volume);
 	floor->GetTransform().SetWorldScale(floorSize);
 	floor->GetTransform().SetWorldPosition(position);
 
 	floor->SetRenderObject(new RenderObject(&floor->GetTransform(), cubeMesh, basicTex, basicShader));
-	floor->SetPhysicsObject(new PhysicsObject(&floor->GetTransform(), floor->GetBoundingVolume(),2.0f));
+	floor->SetPhysicsObject(new PhysicsObject(&floor->GetTransform(), floor->GetBoundingVolume(),.0f));
 	floor->GetRenderObject()->SetColour(Vector4(0.87, 0.59, .12, 1));
 	floor->GetPhysicsObject()->SetInverseMass(0);
 	floor->GetPhysicsObject()->InitCubeInertia();
@@ -416,6 +436,90 @@ GameObject* TutorialGame::AddFloorToWorld(const Vector3& position) {
 	world->AddGameObject(floor);
 
 	return floor;
+}
+GameObject* TutorialGame::AddIslandToWorld(const Vector3& position) {
+	
+	for (double i = 0; i < 50; i+=.5) {
+		AddMiniFloorToWorld(position + Vector3(0, i, 0), Vector3(100-i, 0.3, 100-i), Vector4(0.25, 0.47, 0.30, 1));
+	}
+
+	return 0;
+}
+GameObject* TutorialGame::AddMiniFloorToWorld(const Vector3& position, const Vector3& size, const Vector4& colour) {
+	GameObject* minifloor = new GameObject("minifloor");
+
+	Vector3 floorSize = size;
+	AABBVolume* volume = new AABBVolume(floorSize);
+	minifloor->SetBoundingVolume((CollisionVolume*)volume);
+	minifloor->GetTransform().SetWorldScale(floorSize);
+	minifloor->GetTransform().SetWorldPosition(position);
+
+	minifloor->SetRenderObject(new RenderObject(&minifloor->GetTransform(), cubeMesh, basicTex, basicShader));
+	minifloor->SetPhysicsObject(new PhysicsObject(&minifloor->GetTransform(), minifloor->GetBoundingVolume(),.0f));
+	minifloor->GetRenderObject()->SetColour(colour);
+	minifloor->GetPhysicsObject()->SetInverseMass(0);
+	minifloor->GetPhysicsObject()->InitCubeInertia();
+
+	world->AddGameObject(minifloor);
+
+	return minifloor;
+}
+
+GameObject* TutorialGame::AddTrampolineToWorld(const Vector3& position) {
+	GameObject* trampoline = new GameObject("trampoline");
+
+	Vector3 trampolineSize = Vector3(4, 0.5f, 4);
+	AABBVolume* volume = new AABBVolume(trampolineSize);
+	trampoline->SetBoundingVolume((CollisionVolume*)volume);
+	trampoline->GetTransform().SetWorldScale(trampolineSize);
+	trampoline->GetTransform().SetWorldPosition(position);
+
+	trampoline->SetRenderObject(new RenderObject(&trampoline->GetTransform(), cubeMesh, basicTex, basicShader));
+	trampoline->SetPhysicsObject(new PhysicsObject(&trampoline->GetTransform(), trampoline->GetBoundingVolume(), 20.0f));
+	trampoline->GetRenderObject()->SetColour(Vector4(0.17, 0.23, .43, 1));
+	trampoline->GetPhysicsObject()->SetInverseMass(0);
+	trampoline->GetPhysicsObject()->InitCubeInertia();
+
+	world->AddGameObject(trampoline);
+
+	return trampoline;
+}
+GameObject* TutorialGame::AddTreeToWorld(const Vector3& position) {
+	GameObject* treeLog = new GameObject("tree");
+
+	Vector3 treeSize = Vector3(3, 6, 3);
+	AABBVolume* volume = new AABBVolume(treeSize);
+	treeLog->SetBoundingVolume((CollisionVolume*)volume);
+	treeLog->GetTransform().SetWorldScale(treeSize);
+	treeLog->GetTransform().SetWorldPosition(position);
+
+	treeLog->SetRenderObject(new RenderObject(&treeLog->GetTransform(), cubeMesh, basicTex, basicShader));
+	treeLog->SetPhysicsObject(new PhysicsObject(&treeLog->GetTransform(), treeLog->GetBoundingVolume(),0.0f));
+	treeLog->GetRenderObject()->SetColour(Vector4(0.83, 0.53, .10, 1));
+	treeLog->GetPhysicsObject()->SetInverseMass(0.001f);
+	treeLog->GetPhysicsObject()->InitCubeInertia();
+
+	world->AddGameObject(treeLog);
+	AddTreeLeafToWorld(position+Vector3(0,20,0));
+	return treeLog;
+}
+GameObject* TutorialGame::AddTreeLeafToWorld(const Vector3& position) {
+	GameObject* treeLeaf = new GameObject("treeLeaf");
+
+	Vector3 leafSize = Vector3(8, 8, 8);
+	AABBVolume* volume = new AABBVolume(leafSize);
+	treeLeaf->SetBoundingVolume((CollisionVolume*)volume);
+	treeLeaf->GetTransform().SetWorldScale(leafSize);
+	treeLeaf->GetTransform().SetWorldPosition(position);
+
+	treeLeaf->SetRenderObject(new RenderObject(&treeLeaf->GetTransform(), cubeMesh, basicTex, basicShader));
+	treeLeaf->SetPhysicsObject(new PhysicsObject(&treeLeaf->GetTransform(), treeLeaf->GetBoundingVolume(),0.0f));
+	treeLeaf->GetRenderObject()->SetColour(Vector4(0.74, 0.76, .31, 1));
+	treeLeaf->GetPhysicsObject()->SetInverseMass(0);
+	treeLeaf->GetPhysicsObject()->InitCubeInertia();
+
+	world->AddGameObject(treeLeaf);
+	return treeLeaf;
 }
 
 /*
@@ -511,7 +615,10 @@ GameObject* TutorialGame::AddGooseToWorld(const Vector3& position)
 	trigger = AddTriggerToWorld(position, Vector3(5, 3, 20));
 	return goose;
 }
-
+void TutorialGame::Respawn() {
+	
+	AddGooseToWorld(Vector3(30, 2, 0));
+}
 GameObject* TutorialGame::AddParkKeeperToWorld(const Vector3& position)
 {
 	float meshSize = 4.0f;
@@ -532,7 +639,7 @@ GameObject* TutorialGame::AddParkKeeperToWorld(const Vector3& position)
 	keeper->GetPhysicsObject()->InitCubeInertia();
 
 	world->AddGameObject(keeper);
-
+	ch1 = keeper;
 	return keeper;
 }
 
@@ -568,7 +675,7 @@ GameObject* TutorialGame::AddCharacterToWorld(const Vector3& position) {
 	character->GetPhysicsObject()->InitCubeInertia();
 
 	world->AddGameObject(character);
-
+	//ch1 = character;
 	return character;
 }
 
