@@ -4,6 +4,8 @@
 #include "../../Plugins/OpenGLRendering/OGLShader.h"
 #include "../../Plugins/OpenGLRendering/OGLTexture.h"
 #include "../../Common/TextureLoader.h"
+#include <algorithm>
+//#include "Camera.h"
 
 #include "../CSC8503Common/PositionConstraint.h"
 //#include "..//CSC8503Common/CollisionDetection.h"
@@ -12,17 +14,19 @@ using namespace NCL;
 using namespace CSC8503;
 
 TutorialGame::TutorialGame()	{
-	world		= new GameWorld();
-	renderer	= new GameTechRenderer(*world);
-	physics		= new PhysicsSystem(*world);
+	world = new GameWorld();
+	renderer = new GameTechRenderer(*world);
+	physics = new PhysicsSystem(*world);
 
-	forceMagnitude	= 10.0f;
-	useGravity		= false;
+	forceMagnitude = 10.0f;
+	useGravity = false;
 	inSelectionMode = false;
 
 	Debug::SetRenderer(renderer);
+	
 
 	InitialiseAssets();
+	
 }
 
 /*
@@ -51,6 +55,7 @@ void TutorialGame::InitialiseAssets() {
 	basicShader = new OGLShader("GameTechVert.glsl", "GameTechFrag.glsl");
 
 	InitCamera();
+
 	InitWorld();
 }
 
@@ -100,6 +105,8 @@ void TutorialGame::UpdateGame(float dt) {
 	
 	SelectObject();
 	MoveSelectedObject();
+
+	
 
 	world->UpdateWorld(dt);
 	renderer->Update(dt);
@@ -165,12 +172,44 @@ void TutorialGame::LockedObjectMovement() {
 	//the right axis, to hopefully get a vector that's good enough!
 
 	Vector3 fwdAxis = Vector3::Cross(Vector3(0, 20, 0), rightAxis);
+
 	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::E)) {
 		for (GameObject* obj : physics->GetTriggerList()) {
-			obj->GetPhysicsObject()->AddForce(fwdAxis * 100);
+			obj->GetPhysicsObject()->AddForce(fwdAxis*10);
+			obj->GetPhysicsObject()->AddTorque(fwdAxis);
 		}
 	}
+	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::Q)) {
+		if (lockedObject->GetTag() != "hold") {
+			for (GameObject* obj : physics->GetPickupList()) {
 
+				if (obj->GetName() == "apple") {
+					lockedObject->SetTag("hold");
+					obj->GetTransform().SetParent(&lockedObject->GetTransform());
+					obj->GetTransform().SetLocalPosition(Vector3(0, 1, 2));
+					obj->GetPhysicsObject()->SetInverseMass(-1);
+					pickupItems = obj;
+				}
+			}
+		}
+		else {
+			std::cout << "release what u hold" << std::endl;
+		}
+	}
+	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::R)) {
+		if (lockedObject->GetTag() != "hold") {
+			
+			std::cout << "u hold shit" << std::endl;
+			
+			
+		}
+		else {
+			lockedObject->SetTag("");
+			pickupItems->GetTransform().SetParent(pickupItems->GetInitPos());
+			
+			pickupItems->GetPhysicsObject()->SetInverseMass(1);
+		}
+	}
 	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::A)) {//LEFT
 		selectionObject->GetPhysicsObject()->AddForce(-rightAxis);
 	}
@@ -198,25 +237,30 @@ void TutorialGame::LockedObjectMovement() {
 		}
 	}
 	//fly
-	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SPACE)) {
-		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SHIFT)) {
-			selectionObject->GetPhysicsObject()->AddForce(Vector3(0, -100, 0));
-		}
-		else {
-			selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 50, 0));
-		}
+	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::SPACE)) {
+		selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 2000, 0));
+	}
+	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::NUM0)) {
+		std::cout << lockedObject->GetTransform().GetLocalPosition();
+		std::cout << " tag:"<<lockedObject->GetTag();
+	}
+	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::V)) {
+		selectionObject->GetPhysicsObject()->AddForce(Vector3(0, -1000, 0));
 	}
 	
 	//trigger->GetTransform().SetWorldOrientation(lockedObject->GetTransform().GetWorldOrientation());
 	trigger->GetTransform().SetParent(&lockedObject->GetTransform());
+	picker->GetTransform().SetParent(&lockedObject->GetTransform());
 	//Vector3 offset = trigger->GetTransform().GetLocalOrientation() * Vector3(0, 0, 70);
 	trigger->GetTransform().SetLocalPosition(Vector3(0, 2, 25));
+	picker->GetTransform().SetLocalPosition(Vector3(0, 0, 0));;
 	//(lockedObject->GetTransform().GetLocalPosition()) + offset)
 }
 bool d3 = false;
+
 void  TutorialGame::LockedCameraMovement() {
-	float pitchLocked =0;
-	float yawLocked =0;
+	float pitchLocked = 0;
+	float yawLocked = 0;
 	if (lockedObject != nullptr) {
 
 		if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::NUM1)) {
@@ -234,6 +278,8 @@ void  TutorialGame::LockedCameraMovement() {
 		Vector3 objPos = lockedObject->GetTransform().GetWorldPosition();
 
 		
+		//pitchLocked = min(pitchLocked, 90.0f);
+		//pitchLocked = max(pitchLocked, -90.0f);
 
 		Quaternion q = Quaternion::EulerAnglesToQuaternion(-pitchLocked, yawLocked, 0);
 		Quaternion n = objOri * q;
@@ -301,52 +347,51 @@ letting you move the camera around.
 
 */
 bool TutorialGame::SelectObject() {
-	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::Q)) {
-		inSelectionMode = !inSelectionMode;
-		if (inSelectionMode) {
-			Window::GetWindow()->ShowOSPointer(true);
-			Window::GetWindow()->LockMouseToWindow(false);
-		}
-		else {
-			Window::GetWindow()->ShowOSPointer(false);
-			Window::GetWindow()->LockMouseToWindow(true);
-		}
-	}
-	if (inSelectionMode) {
-		renderer->DrawString("Press Q to change to camera mode!", Vector2(10, 0));
+	///*if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::Q)) {
+	//	inSelectionMode = !inSelectionMode;
+	//	if (inSelectionMode) {
+	//		Window::GetWindow()->ShowOSPointer(true);
+	//		Window::GetWindow()->LockMouseToWindow(false);
+	//	}
+	//	else {
+	//		Window::GetWindow()->ShowOSPointer(false);
+	//		Window::GetWindow()->LockMouseToWindow(true);
+	//	}
+	//}*/
+	//if (inSelectionMode) {
+	//	renderer->DrawString("Press 1 to change the camera mode", Vector2(10, 0));
 
-		if (Window::GetMouse()->ButtonDown(NCL::MouseButtons::LEFT)) {
-			if (selectionObject) {	//set colour to deselected;
-				selectionObject->GetRenderObject()->SetColour(Vector4(1, 1, 1, 1));
-				selectionObject = nullptr;
-			}
+	//	if (Window::GetMouse()->ButtonDown(NCL::MouseButtons::LEFT)) {
+	//		if (selectionObject) {	//set colour to deselected;
+	//			selectionObject->GetRenderObject()->SetColour(Vector4(1, 1, 1, 1));
+	//			selectionObject = nullptr;
+	//		}
 
-			Ray ray = CollisionDetection::BuildRayFromMouse(*world->GetMainCamera());
+	//		Ray ray = CollisionDetection::BuildRayFromMouse(*world->GetMainCamera());
 
-			RayCollision closestCollision;
-			if (world->Raycast(ray, closestCollision, true)) {
-				selectionObject = (GameObject*)closestCollision.node;
-				selectionObject->GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
-				return true;
-			}
-			else {
-				return false;
-			}
-		}
-		if (Window::GetKeyboard()->KeyPressed(NCL::KeyboardKeys::L)) {
-			if (selectionObject) {
-				if (lockedObject == selectionObject) {
-					lockedObject = nullptr;
-				}
-				else {
-					lockedObject = selectionObject;
-				}
-			}
-		}
-	}
-	else {
-		renderer->DrawString("Press Q to change to select mode!", Vector2(10, 0));
-	}
+	//		RayCollision closestCollision;
+	//		if (world->Raycast(ray, closestCollision, true)) {
+	//			selectionObject = (GameObject*)closestCollision.node;
+	//			selectionObject->GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
+	//			return true;
+	//		}
+	//		else {
+	//			return false;
+	//		}
+	//	}
+	//	if (Window::GetKeyboard()->KeyPressed(NCL::KeyboardKeys::L)) {
+	//		if (selectionObject) {
+	//			if (lockedObject == selectionObject) {
+	//				lockedObject = nullptr;
+	//			}
+	//			else {
+	//				lockedObject = selectionObject;
+	//			}
+	//		}
+	//	}
+	//}
+	//else {
+	//}
 	return false;
 }
 
@@ -359,25 +404,25 @@ line - after the third, they'll be able to twist under torque aswell.
 
 void TutorialGame::MoveSelectedObject() {
 	renderer->DrawString("Humans killed: " + std::to_string(killCounter), Vector2(10, 60));
-	renderer -> DrawString(" Click Force :" + std::to_string(forceMagnitude),Vector2(10, 20)); // Draw debug text at 10 ,20
-	forceMagnitude += Window::GetMouse() -> GetWheelMovement() * 100.0f;
-	
-	if (!selectionObject) {
-		return;// we haven ’t selected anything 
-	}
-	// Push the selected object !
-	if (Window::GetMouse() -> ButtonPressed(NCL::MouseButtons::RIGHT)) {
-		Ray ray = CollisionDetection::BuildRayFromMouse(* world -> GetMainCamera());
-		RayCollision closestCollision;
-		if (world -> Raycast(ray, closestCollision, true)) {
-			/*if (closestCollision.node == selectionObject) {
-				selectionObject -> GetPhysicsObject() -> AddForce(ray.GetDirection() * forceMagnitude);
-			}*/
-			if (closestCollision.node == selectionObject) {
-				 selectionObject -> GetPhysicsObject() -> AddForceAtPosition(ray.GetDirection() * forceMagnitude, closestCollision.collidedAt);
-			}
-		}
-	}
+	//renderer -> DrawString(" Click Force :" + std::to_string(forceMagnitude),Vector2(10, 20)); // Draw debug text at 10 ,20
+	//forceMagnitude += Window::GetMouse() -> GetWheelMovement() * 100.0f;
+	//
+	//if (!selectionObject) {
+	//	return;// we haven ’t selected anything 
+	//}
+	//// Push the selected object !
+	//if (Window::GetMouse() -> ButtonPressed(NCL::MouseButtons::RIGHT)) {
+	//	Ray ray = CollisionDetection::BuildRayFromMouse(* world -> GetMainCamera());
+	//	RayCollision closestCollision;
+	//	if (world -> Raycast(ray, closestCollision, true)) {
+	//		/*if (closestCollision.node == selectionObject) {
+	//			selectionObject -> GetPhysicsObject() -> AddForce(ray.GetDirection() * forceMagnitude);
+	//		}*/
+	//		if (closestCollision.node == selectionObject) {
+	//			 selectionObject -> GetPhysicsObject() -> AddForceAtPosition(ray.GetDirection() * forceMagnitude, closestCollision.collidedAt);
+	//		}
+	//	}
+	//}
 }
 
 void TutorialGame::InitCamera() {
@@ -394,20 +439,21 @@ void TutorialGame::InitWorld() {
 	physics->Clear();
 
 	InitMixedGridWorld(10, 10, 3.5f, 3.5f);
-	AddGooseToWorld(Vector3(30, 2, 0));
+	AddGooseToWorld(Vector3(-100, 4, -200));
 	AddAppleToWorld(Vector3(35, 2, 0));
+	AddAppleToWorld(Vector3(-105, -13.9, -200));
 
 	AddParkKeeperToWorld(Vector3(40, 2, 0));
 	AddCharacterToWorld(Vector3(45, 2, 0));
 
 	//AddSphereToWorld(Vector3(10, 5, 0), 1.0f);
-	AddIslandToWorld(Vector3(200, -18, 200));
-	AddFloorToWorld(Vector3(0, -20, 0), Vector3(500, 2, 500));
+	AddIslandToWorld(Vector3(200, -19, 200));
+	AddFloorToWorld(Vector3(0, -20, 0), Vector3(100, 2, 100));
 	AddMiniFloorToWorld(Vector3(0, -19, 0), Vector3(20, 0.1, 50),Vector4(0.25,0.47,0.30,1));
 
 	AddTreeToWorld(Vector3(0, -18, 0));
 
-	AddTrampolineToWorld(Vector3(50, -18, 50));
+	AddTrampolineToWorld(Vector3(50, -18, 50),Vector4(0.55, 0.27, 0.07,1),20.0f);
 }
 
 
@@ -439,10 +485,53 @@ GameObject* TutorialGame::AddFloorToWorld(const Vector3& position, const Vector3
 }
 GameObject* TutorialGame::AddIslandToWorld(const Vector3& position) {
 	
-	for (double i = 0; i < 50; i+=.5) {
+	for (double i = 0; i < 1; i+=.5) {
 		AddMiniFloorToWorld(position + Vector3(0, i, 0), Vector3(100-i, 0.3, 100-i), Vector4(0.25, 0.47, 0.30, 1));
 	}
+	for (double i = 0; i < 1; i += .5) {
+		AddMiniFloorToWorld(position + Vector3(0, i, -100), Vector3(100 - i, 0.3, 100 - i), Vector4(0.25, 0.47, 0.30, 1));
+	}
+	for (double i = 0; i < 3; i += .5) {
+		AddMiniFloorToWorld(position + Vector3(0, i, -200), Vector3(100 - i, 0.3, 100 - i), Vector4(0.25, 0.47, 0.30, 1));
+	}
+	for (double i = 0; i < 2; i += .5) {
+		AddMiniFloorToWorld(position + Vector3(0, i, -300), Vector3(100 - i, 0.3, 100 - i), Vector4(0.25, 0.47, 0.30, 1));
+	}
+	for (double i = 0; i < .5; i += .5) {
+		AddMiniFloorToWorld(position + Vector3(-100, i, -400), Vector3(100 - i, 0.3, 100 - i), Vector4(0.53, 0.81, 0.92, .5));
+	}
+	for (double i = 0; i < .5; i += .5) {
+		AddMiniFloorToWorld(position + Vector3(-200, i, -400), Vector3(100 - i, 0.3, 100 - i), Vector4(0.53, 0.81, 0.92, .5));
+	}
+	for (double i = 0; i < .5; i += .5) {
+		AddMiniFloorToWorld(position + Vector3(-300, i, -400), Vector3(100 - i, 0.3, 100 - i), Vector4(0.53, 0.81, 0.92, .5));
+	}
+	for (double i = 0; i < .5; i += .5) {//brown on den
+		AddMiniFloorToWorld(position + Vector3(-300, 1+i, -400), Vector3(50 - i, 3, 50 - i), Vector4(0.40, 0.27, 0.0, 1));
+	}
+	AddMiniFloorToWorld(position + Vector3(-300, 4, -400), Vector3(50, 0.1, 50), Vector4(0.25, 0.47, 0.30, 1));//green on den
+	for (double i = 0; i < 150; i += 4) {//fraxtis
+		AddMiniFloorToWorld(position + Vector3(90-i, 6, -290), Vector3(1, 3, 1), Vector4(0.85, 0.77, 0.53, 1));
+	}
+	for (double i = 0; i < 90; i += 4) {//fraxtis
+		AddMiniFloorToWorld(position + Vector3(90, 6, -290+i), Vector3(1, 3, 1), Vector4(0.85, 0.77, 0.53, 1));
+	}
+	for (double i = 0; i < 150; i += 4) {//fraxtis
+		AddMiniFloorToWorld(position + Vector3(90-i, 6, -190), Vector3(1, 3, 1), Vector4(0.85, 0.77, 0.53, 1));
+	}
+	AddMiniFloorToWorld(position + Vector3(30, 10, -230), Vector3(20, 20, 20), Vector4(0.25, 0.25, 0.25, 1));//house
 
+	for (double i = 0; i < 15; i += 1) {//celing
+		AddMiniFloorToWorld(position + Vector3(30, 31+i, -230), Vector3(22-i, 1, 22-i), Vector4(1, 1, 1, 1));	
+		
+	}
+	//door
+	AddMiniFloorToWorld(Vector3(208.987, -10, -24.2353), Vector3(1, 8, 4), Vector4(0.55, 0.27, 0.07, 1));
+	//trampoline
+	AddTrampolineToWorld(Vector3(237, -15.2873, -55), Vector4(0.55, 0.27, 0.07, 1),20.0f);
+	//apple
+	AddAppleToWorld(Vector3(223.925, 28, -34.5038));
+	AddTreeToWorld(position + Vector3(-340, 4, -440));
 	return 0;
 }
 GameObject* TutorialGame::AddMiniFloorToWorld(const Vector3& position, const Vector3& size, const Vector4& colour) {
@@ -465,7 +554,7 @@ GameObject* TutorialGame::AddMiniFloorToWorld(const Vector3& position, const Vec
 	return minifloor;
 }
 
-GameObject* TutorialGame::AddTrampolineToWorld(const Vector3& position) {
+GameObject* TutorialGame::AddTrampolineToWorld(const Vector3& position, const Vector4& colour, float bounciness) {
 	GameObject* trampoline = new GameObject("trampoline");
 
 	Vector3 trampolineSize = Vector3(4, 0.5f, 4);
@@ -475,8 +564,8 @@ GameObject* TutorialGame::AddTrampolineToWorld(const Vector3& position) {
 	trampoline->GetTransform().SetWorldPosition(position);
 
 	trampoline->SetRenderObject(new RenderObject(&trampoline->GetTransform(), cubeMesh, basicTex, basicShader));
-	trampoline->SetPhysicsObject(new PhysicsObject(&trampoline->GetTransform(), trampoline->GetBoundingVolume(), 20.0f));
-	trampoline->GetRenderObject()->SetColour(Vector4(0.17, 0.23, .43, 1));
+	trampoline->SetPhysicsObject(new PhysicsObject(&trampoline->GetTransform(), trampoline->GetBoundingVolume(), bounciness));
+	trampoline->GetRenderObject()->SetColour(colour);
 	trampoline->GetPhysicsObject()->SetInverseMass(0);
 	trampoline->GetPhysicsObject()->InitCubeInertia();
 
@@ -569,8 +658,8 @@ GameObject* TutorialGame::AddCubeToWorld(const Vector3& position, Vector3 dimens
 
 	return cube;
 }
-GameObject* TutorialGame::AddTriggerToWorld(const Vector3& position, Vector3 dimensions) {
-	GameObject* cube = new GameObject("trigger");
+GameObject* TutorialGame::AddTriggerToWorld(const Vector3& position, Vector3 dimensions,string name) {
+	GameObject* cube = new GameObject(name);
 
 	AABBVolume* volume = new AABBVolume(dimensions);
 
@@ -612,7 +701,9 @@ GameObject* TutorialGame::AddGooseToWorld(const Vector3& position)
 	lockedObject = goose;
 	selectionObject = goose;
 
-	trigger = AddTriggerToWorld(position, Vector3(5, 3, 20));
+	trigger = AddTriggerToWorld(position, Vector3(5, 3, 20),"trigger");
+	picker = AddTriggerToWorld(position, Vector3(3, 3, 3),"pickup");
+	
 	return goose;
 }
 void TutorialGame::Respawn() {
@@ -681,7 +772,7 @@ GameObject* TutorialGame::AddCharacterToWorld(const Vector3& position) {
 
 GameObject* TutorialGame::AddAppleToWorld(const Vector3& position) {
 	GameObject* apple = new GameObject("apple");
-
+	
 	SphereVolume* volume = new SphereVolume(0.7f);
 	apple->SetBoundingVolume((CollisionVolume*)volume);
 	apple->GetTransform().SetWorldScale(Vector3(4, 4, 4));
@@ -696,7 +787,7 @@ GameObject* TutorialGame::AddAppleToWorld(const Vector3& position) {
 	//apple->SetRenderObject(new RenderObject(&apple->GetTransform())
 
 	world->AddGameObject(apple);
-
+	apple->SetInitPos(&apple->GetTransform());
 	return apple;
 }
 

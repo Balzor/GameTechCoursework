@@ -32,7 +32,9 @@ namespace NCL {
 			void SetParent(Transform* newParent) {
 				parent = newParent;
 			}
-
+			void RemoveParent() {
+				parent = nullptr;
+			}
 			Matrix4 GetWorldMatrix() const {
 				return worldMatrix;
 			}

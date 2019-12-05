@@ -17,7 +17,7 @@ PhysicsSystem::PhysicsSystem(GameWorld& g) : gameWorld(g)	{
 	useBroadPhase	= false;	
 	dTOffset		= 0.0f;
 	globalDamping	= 0.95f;
-	SetGravity(Vector3(0.0f, -9.8f, 0.0f));
+	SetGravity(Vector3(0.0f, -98.0f, 0.0f));
 }
 
 PhysicsSystem::~PhysicsSystem()	{
@@ -48,6 +48,7 @@ This is the core of the physics engine update
 */
 void PhysicsSystem::Update(float dt) {
 	triggerObj.clear();
+	pickupObj.clear();
 	GameTimer testTimer;
 	testTimer.GetTimeDeltaSeconds();
 
@@ -187,9 +188,22 @@ void PhysicsSystem::BasicCollisionDetection() {
 					
 				}
 				else {
-					ImpulseResolveCollision(*info.a, *info.b, info.point);
-					info.framesLeft = numCollisionFrames;
-					allCollisions.insert(info);
+					if ((*i)->GetName() == "pickup" || ((*j)->GetName() == "pickup")) {
+						info.framesLeft = numCollisionFrames;
+						if ((*i)->GetName() == "pickup") {
+							pickupObj.insert(*j);
+						}
+						else {
+							pickupObj.insert(*i);
+						}
+
+					}
+					else {
+						ImpulseResolveCollision(*info.a, *info.b, info.point);
+						info.framesLeft = numCollisionFrames;
+						allCollisions.insert(info);
+					}
+					
 				}
 				//std::cout << " Collision between " << (*i) -> GetName()<< " and " << (*j) -> GetName() << std::endl;
 				
@@ -329,7 +343,7 @@ void PhysicsSystem::IntegrateVelocity(float dt) {
 	std::vector <GameObject*>::const_iterator first;
 	std::vector <GameObject*>::const_iterator last;
 	gameWorld.GetObjectIterators(first, last);
-	float dampingFactor = 1.0f - 0.65f;
+	float dampingFactor = 1.0f - globalDamping;
 	float frameDamping = powf(dampingFactor, dt);
 	
 	for (auto i = first; i != last; ++i) {

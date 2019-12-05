@@ -2,21 +2,14 @@
 
 namespace NCL {
 	namespace CSC8503 {
-
 		class State;
-
-		class StateTransition
-		{
+		class StateTransition{
 		public:
 			virtual bool CanTransition() const = 0;
 
-			State* GetDestinationState()  const {
-				return destinationState;
-			}
+			State* GetDestinationState()  const {return destinationState;}
 
-			State* GetSourceState() const {
-				return sourceState;
-			}
+			State* GetSourceState() const {return sourceState;}
 
 		protected:
 			State * sourceState;
@@ -28,9 +21,7 @@ namespace NCL {
 		{
 		public:
 			typedef bool(*GenericTransitionFunc)(T, U);
-			GenericTransition(GenericTransitionFunc f, T testData, U otherData, State* srcState, State* destState) :
-				dataA(testData), dataB(otherData)
-			{
+			GenericTransition(GenericTransitionFunc f, T testData, U otherData, State* srcState, State* destState) : dataA(testData), dataB(otherData){
 				func				= f;
 				sourceState			= srcState;		//
 				destinationState	= destState;

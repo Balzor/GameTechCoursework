@@ -27,6 +27,9 @@ namespace NCL {
 			std::set<GameObject*>& GetTriggerList() {
 				return triggerObj;
 			}
+			std::set<GameObject*>& GetPickupList() {
+				return pickupObj;
+			}
 		protected:
 			void BasicCollisionDetection();
 			void BroadPhase();
@@ -54,6 +57,7 @@ namespace NCL {
 
 
 			std::set<GameObject*> triggerObj;
+			std::set<GameObject*> pickupObj;
 			std::set<CollisionDetection::CollisionInfo> allCollisions;
 			std::set<CollisionDetection::CollisionInfo>		broadphaseCollisions;
 			std::vector<CollisionDetection::CollisionInfo>	broadphaseCollisionsVec;

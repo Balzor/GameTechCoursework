@@ -73,7 +73,24 @@ namespace NCL {
 
 			bool GetBroadphaseAABB(Vector3&outsize) const;
 			void UpdateBroadphaseAABB();
+
+			string GetTag() {
+				return tag;
+			}
+			void SetTag(string t) {
+				tag = t;
+			}
+
+			Transform* GetInitPos() {
+				return position;
+			}
+			void SetInitPos(Transform* p) {
+				position = p;
+			}
 		protected:
+
+			Transform* position;
+
 			Transform			transform;
 
 			CollisionVolume*	boundingVolume;
@@ -81,6 +98,7 @@ namespace NCL {
 			RenderObject*		renderObject;
 			NetworkObject*		networkObject;
 
+			string tag;
 			bool	isActive;
 			string	name;
 

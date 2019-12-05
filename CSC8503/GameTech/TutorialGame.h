@@ -43,8 +43,10 @@ namespace NCL {
 			GameObject* AddMiniFloorToWorld(const Vector3& position, const Vector3& size,const Vector4& colour);
 			GameObject* AddSphereToWorld(const Vector3& position, float radius, float inverseMass = 10.0f);
 			GameObject* AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass = 10.0f);
-			GameObject* AddTriggerToWorld(const Vector3& position, Vector3 dimensions);
+			GameObject* AddTriggerToWorld(const Vector3& position, Vector3 dimensions,string name);
 			GameObject* trigger;
+			GameObject* picker;
+			GameObject* pickupItems;
 			//IT'S HAPPENING
 			GameObject* AddGooseToWorld(const Vector3& position);
 			GameObject* AddParkKeeperToWorld(const Vector3& position);
@@ -52,7 +54,7 @@ namespace NCL {
 			GameObject* AddAppleToWorld(const Vector3& position);
 			GameObject* AddTreeToWorld(const Vector3& position);
 			GameObject* AddTreeLeafToWorld(const Vector3& position);
-			GameObject* AddTrampolineToWorld(const Vector3& position);
+			GameObject* AddTrampolineToWorld(const Vector3& position, const Vector4& colour,float bounciness);
 			GameObject* AddIslandToWorld(const Vector3& position);
 
 
