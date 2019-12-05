@@ -160,7 +160,8 @@ void TutorialGame::UpdateKeys() {
 		DebugObjectMovement();
 	}
 }
-
+Vector3 save;
+Transform* saveParent;
 void TutorialGame::LockedObjectMovement() {
 	Matrix4 view		= world->GetMainCamera()->BuildViewMatrix();
 	Matrix4 camWorld	= view.Inverse();
@@ -184,9 +185,12 @@ void TutorialGame::LockedObjectMovement() {
 			for (GameObject* obj : physics->GetPickupList()) {
 
 				if (obj->GetName() == "apple") {
+					save = obj->GetTransform().GetLocalPosition();
+					saveParent = obj->GetTransform().GetParent();
 					lockedObject->SetTag("hold");
 					obj->GetTransform().SetParent(&lockedObject->GetTransform());
 					obj->GetTransform().SetLocalPosition(Vector3(0, 1, 2));
+					
 					obj->GetPhysicsObject()->SetInverseMass(-1);
 					pickupItems = obj;
 				}
@@ -205,8 +209,8 @@ void TutorialGame::LockedObjectMovement() {
 		}
 		else {
 			lockedObject->SetTag("");
-			pickupItems->GetTransform().SetParent(pickupItems->GetInitPos());
-			
+			pickupItems->GetTransform().SetParent(saveParent);
+			pickupItems->GetTransform().SetLocalPosition(save);
 			pickupItems->GetPhysicsObject()->SetInverseMass(1);
 		}
 	}
