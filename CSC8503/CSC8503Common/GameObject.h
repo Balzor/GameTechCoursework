@@ -81,15 +81,15 @@ namespace NCL {
 				tag = t;
 			}
 
-			Transform* GetInitPos() {
+			Vector3 GetInitPos() {
 				return position;
 			}
-			void SetInitPos(Transform* p) {
+			void SetInitPos(Vector3 p) {
 				position = p;
 			}
 		protected:
 
-			Transform* position;
+			Vector3 position;
 
 			Transform			transform;
 

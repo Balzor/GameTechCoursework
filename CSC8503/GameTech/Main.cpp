@@ -60,12 +60,29 @@ void TestNetworking() {
 vector<Vector3> testNodes;
 
 void TestPathfinding() {
-
+	NavigationGrid grid("TestGrid1.txt");
+	
+	NavigationPath outPath;
+	
+	Vector3 startPos(80, 0, 10);
+	Vector3 endPos(80, 0, 80);
+	
+	bool found = grid.FindPath(startPos, endPos, outPath);
+	
+	Vector3 pos;
+	while (outPath.PopWaypoint(pos)) {
+		testNodes.push_back(pos);
+	}
 }
-
 void DisplayPathfinding() {
-
+	for (int i = 1; i < testNodes.size(); ++i) {
+		Vector3 a = testNodes[i - 1];
+		Vector3 b = testNodes[i];
+		
+		Debug::DrawLine(a, b, Vector4(0, 1, 0, 1));
+	}
 }
+
 
 
 
@@ -81,6 +98,7 @@ This time, we've added some extra functionality to the window class - we can
 hide or show the 
 
 */
+bool begin = true;
 int main() {
 	Window*w = Window::CreateGameWindow("CSC8503 Game technology!", 1280, 720);
 
@@ -88,9 +106,9 @@ int main() {
 		return -1;
 	}	
 
-	//TestStateMachine();
+	TestStateMachine();
 	//TestNetworking();
-	//TestPathfinding();
+	TestPathfinding();
 	
 	w->ShowOSPointer(false);
 	w->LockMouseToWindow(true);
@@ -115,7 +133,14 @@ int main() {
 
 		w->SetTitle("Gametech frame time:" + std::to_string(1000.0f * dt));
 
-		g->UpdateGame(dt);
+		
+		if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::P)) {
+			begin = !begin;
+		}
+		if (begin) {
+			g->UpdateGame(dt);
+		}
+		//Debug::Print("Test", Vector2(1000, 40));
 	}
 	Window::DestroyGameWindow();
 }

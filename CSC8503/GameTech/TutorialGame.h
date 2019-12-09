@@ -19,6 +19,8 @@ namespace NCL {
 			void UpdateKeys();
 			void CreateObjects();
 
+			void Chase(GameObject* chaser);
+
 			void InitWorld();
 			void Respawn();
 
@@ -39,6 +41,7 @@ namespace NCL {
 			void LockedObjectMovement();
 			void LockedCameraMovement();
 
+
 			GameObject* AddFloorToWorld(const Vector3& position, const Vector3& size);
 			GameObject* AddMiniFloorToWorld(const Vector3& position, const Vector3& size,const Vector4& colour);
 			GameObject* AddSphereToWorld(const Vector3& position, float radius, float inverseMass = 10.0f);
@@ -46,7 +49,17 @@ namespace NCL {
 			GameObject* AddTriggerToWorld(const Vector3& position, Vector3 dimensions,string name);
 			GameObject* trigger;
 			GameObject* picker;
+			GameObject* chaser;
+			GameObject* chaser2;
 			GameObject* pickupItems;
+
+			GameObject* keeper;
+			GameObject* character;
+			//items saved positions
+			Transform* saveParent;
+			Vector3 save;
+			SphereVolume* appleV = new SphereVolume(0.7f);
+
 			//IT'S HAPPENING
 			GameObject* AddGooseToWorld(const Vector3& position);
 			GameObject* AddParkKeeperToWorld(const Vector3& position);
@@ -56,6 +69,8 @@ namespace NCL {
 			GameObject* AddTreeLeafToWorld(const Vector3& position);
 			GameObject* AddTrampolineToWorld(const Vector3& position, const Vector4& colour,float bounciness);
 			GameObject* AddIslandToWorld(const Vector3& position);
+			GameObject* AddBaseFloorToWorld(const Vector3& position, const Vector3& size, const Vector4& colour);
+			GameObject* AddWaterFloorToWorld(const Vector3& position, const Vector3& size, const Vector4& colour);
 
 
 			GameTechRenderer*	renderer;
@@ -63,6 +78,7 @@ namespace NCL {
 			GameWorld*			world;
 
 			bool useGravity;
+			bool beHard;
 			bool inSelectionMode;
 
 			float		forceMagnitude;
@@ -78,16 +94,27 @@ namespace NCL {
 			OGLMesh*	gooseMesh	= nullptr;
 			OGLMesh*	keeperMesh	= nullptr;
 			OGLMesh*	appleMesh	= nullptr;
+			OGLMesh*	raptorMesh	= nullptr;
 			OGLMesh*	charA		= nullptr;
 			OGLMesh*	charB		= nullptr;
 
 			//Coursework Additional functionality	
 			GameObject* lockedObject	= nullptr;
 			GameObject* ch1	= nullptr;
+			GameObject* difficulty	= nullptr;
 			int killCounter=0;
-			Vector3 lockedOffset		= Vector3(0, 14, 20);
+			int applesPicked = 0;
+			float stamina = 100;
+			int caught = 0;
+			int endTimer=10800;
+			Vector3 lockedOffset = Vector3(0, 14, 20);
+
+			vector<Vector3> testNodes;
+
 			void LockCameraToObject(GameObject* o) {
 				lockedObject = o;
+
+
 			}
 		};
 	}

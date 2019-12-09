@@ -49,6 +49,7 @@ This is the core of the physics engine update
 void PhysicsSystem::Update(float dt) {
 	triggerObj.clear();
 	pickupObj.clear();
+	chaseObj.clear();
 	GameTimer testTimer;
 	testTimer.GetTimeDeltaSeconds();
 
@@ -199,16 +200,27 @@ void PhysicsSystem::BasicCollisionDetection() {
 
 					}
 					else {
-						//if(gameWorld.)
-						//ImpulseResolveCollision(*info.a, *info.b, info.point);
-						info.framesLeft = numCollisionFrames;
-						allCollisions.insert(info);
+
+						if ((*i)->GetName() == "chaser" || ((*j)->GetName() == "chaser")) {
+							info.framesLeft = numCollisionFrames;
+							if ((*i)->GetName() == "chaser") {
+								chaseObj.insert(*j);
+							}
+							else {
+								chaseObj.insert(*i);
+							}
+
+						}
+						else {
+
+							ImpulseResolveCollision(*info.a, *info.b, info.point);
+							info.framesLeft = numCollisionFrames;
+							allCollisions.insert(info);
+						}
 					}
 					
 				}
 				//std::cout << " Collision between " << (*i) -> GetName()<< " and " << (*j) -> GetName() << std::endl;
-				
-				
 				//std::cout << (*j)->GetName() << std::endl;
 			}
 		}
