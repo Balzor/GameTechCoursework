@@ -16,6 +16,7 @@
 using namespace NCL;
 using namespace CSC8503;
 
+
 TutorialGame::TutorialGame()	{
 	world = new GameWorld();
 	renderer = new GameTechRenderer(*world);
@@ -29,6 +30,8 @@ TutorialGame::TutorialGame()	{
 	Debug::SetRenderer(renderer);
 
 	InitialiseAssets();
+
+	
 }
 
 /*
@@ -62,20 +65,12 @@ void TutorialGame::InitialiseAssets() {
 
 	InitWorld();
 
-	NavigationGrid grid("TestGrid1.txt");
-
-	NavigationPath outPath;
-
-	Vector3 startPos(80, 0, 10);
-	Vector3 endPos(80, 0, 80);
-
-	bool found = grid.FindPath(startPos, endPos, outPath);
-
-	Vector3 pos;
-	while (outPath.PopWaypoint(pos)) {
-		testNodes.push_back(pos);
-	}
+	
+	
+	
+	
 }
+
 
 TutorialGame::~TutorialGame()	{
 	delete cubeMesh;
@@ -91,7 +86,6 @@ TutorialGame::~TutorialGame()	{
 bool again=false;
 void TutorialGame::UpdateGame(float dt) {
 	
-
 	if (endTimer < 1) {
 		renderer->DrawString("TIME UP", Vector2(180, 180));
 		renderer->DrawString("Final Score: " + std::to_string(applesPicked + (killCounter * 3) - caught), Vector2(500, 180));
@@ -144,8 +138,11 @@ void TutorialGame::UpdateGame(float dt) {
 	
 	
 	
-	
-	
+	for (GameObject* i : characters) {
+		i->Pathfind(i->GetTransform().GetLocalPosition(), lockedObject->GetTransform().GetLocalPosition());
+		
+	}
+
 	UpdateKeys();
 	CreateObjects();
 
@@ -228,7 +225,7 @@ void TutorialGame::UpdateKeys() {
 	}
 }
 
-int po = 0;
+int po = 1;
 int po2 = 0;
 int countPo = 0;
 void TutorialGame::LockedObjectMovement() {
@@ -244,7 +241,10 @@ void TutorialGame::LockedObjectMovement() {
 	Vector3 fwdAxis = Vector3::Cross(Vector3(0, 20, 0), rightAxis);
 
 	//if (Window::GetMouse()->ButtonDown(NCL::MouseButtons::RIGHT)) {
+	
+
 		if (po < testNodes.size()) {
+			Vector3 posa = testNodes[po - 1];
 			Vector3 b = testNodes[po];
 
 			keeper->GetTransform().SetLocalPosition(b);
@@ -260,10 +260,12 @@ void TutorialGame::LockedObjectMovement() {
 				po += 1;
 				countPo = 0;
 			}
+			
 		}
 		else {
-			po = 0;
+			po = 1;
 		}
+		//Debug::DrawLine(posa, b, Vector4(0, 1, 0, 1));
 	//}
 	
 	if (Window::GetMouse()->ButtonDown(NCL::MouseButtons::RIGHT)) {
@@ -574,6 +576,8 @@ void TutorialGame::InitWorld() {
 
 	AddParkKeeperToWorld(Vector3(40, 2, 0));
 	AddCharacterToWorld(Vector3(152.607, -16.0649, -44.5025));
+	AddCharacterToWorld(Vector3(152.607+10, -16.0649, -44.5025));
+	AddCharacterToWorld(Vector3(152.607+20, -16.0649, -44.5025));
 
 
 	AddIslandToWorld(Vector3(200, -19, 200));
@@ -992,8 +996,11 @@ GameObject* TutorialGame::AddCharacterToWorld(const Vector3& position) {
 	character->GetPhysicsObject()->InitCubeInertia();
 
 	world->AddGameObject(character);
-	//ch1 = character;
+
 	chaser = AddTriggerToWorld(position, Vector3(40, 40, 40), "chaser");
+
+	characters.push_back(character);
+	
 	return character;
 	
 }

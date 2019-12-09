@@ -5,6 +5,7 @@
 #include "PhysicsObject.h"
 #include "RenderObject.h"
 #include "NetworkObject.h"
+#include "NavigationGrid.h"
 
 #include <vector>
 
@@ -87,8 +88,12 @@ namespace NCL {
 			void SetInitPos(Vector3 p) {
 				position = p;
 			}
-		protected:
 
+			
+			void Pathfind(Vector3 chaser, Vector3 goose);
+			vector<Vector3> testNodes;
+		protected:
+			NavigationGrid* grid;
 			Vector3 position;
 
 			Transform			transform;
@@ -106,4 +111,3 @@ namespace NCL {
 		};
 	}
 }
-

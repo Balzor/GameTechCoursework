@@ -261,9 +261,14 @@ void PhysicsSystem::ImpulseResolveCollision(GameObject& a, GameObject& b, Collis
 	Vector3 fullVelocityA = physA -> GetLinearVelocity() + angVelocityA;
 	Vector3 fullVelocityB = physB -> GetLinearVelocity() + angVelocityB;
 
-	Vector3 contactVelocity = fullVelocityB - fullVelocityA;	if (Vector3::Dot(contactVelocity, p.normal) > 0) {
+	Vector3 contactVelocity = fullVelocityB - fullVelocityA;
+
+	if (Vector3::Dot(contactVelocity, p.normal) > 0) {
 		return;
-	}	float impulseForce = Vector3::Dot(contactVelocity, p.normal);
+	}
+
+	float impulseForce = Vector3::Dot(contactVelocity, p.normal);
+
 	Vector3 inertiaA = Vector3::Cross(physA -> GetInertiaTensor()* Vector3::Cross(relativeA, p.normal), relativeA);
 	Vector3 inertiaB = Vector3::Cross(physB -> GetInertiaTensor()* Vector3::Cross(relativeB, p.normal), relativeB);
 
@@ -273,9 +278,13 @@ void PhysicsSystem::ImpulseResolveCollision(GameObject& a, GameObject& b, Collis
 
 	float j = (-(1.0f + cRestitution) * impulseForce) / (totalMass + angularEffect);
 
-	Vector3 fullImpulse = p.normal * j;
+	Vector3 fullImpulse = p.normal * j;
+
 	physA -> ApplyLinearImpulse(-fullImpulse);
-	physB -> ApplyLinearImpulse(fullImpulse);	physA -> ApplyAngularImpulse(Vector3::Cross(relativeA, -fullImpulse));	physB -> ApplyAngularImpulse(Vector3::Cross(relativeB, fullImpulse));
+	physB -> ApplyLinearImpulse(fullImpulse);
+
+	physA -> ApplyAngularImpulse(Vector3::Cross(relativeA, -fullImpulse));
+	physB -> ApplyAngularImpulse(Vector3::Cross(relativeB, fullImpulse));
 
 	
 }
@@ -345,7 +354,8 @@ void PhysicsSystem::IntegrateAccel(float dt) {
 
 		angVel += angAccel * dt; // integrate angular accel !
 		object->SetAngularVelocity(angVel);
-	}}
+	}
+}
 /*
 This function integrates linear and angular velocity into
 position and orientation. It may be called multiple times
@@ -387,7 +397,8 @@ void PhysicsSystem::IntegrateVelocity(float dt) {
 		
 		// Damp the angular velocity too
 		angVel = angVel * frameDamping;
-		 object -> SetAngularVelocity(angVel);	}
+		 object -> SetAngularVelocity(angVel);
+	}
 }
 
 /*

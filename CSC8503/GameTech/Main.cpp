@@ -64,8 +64,8 @@ void TestPathfinding() {
 	
 	NavigationPath outPath;
 	
-	Vector3 startPos(80, 0, 10);
-	Vector3 endPos(80, 0, 80);
+	Vector3 startPos(0, 0, 0);
+	Vector3 endPos(199, 0, 199);
 	
 	bool found = grid.FindPath(startPos, endPos, outPath);
 	
@@ -79,7 +79,7 @@ void DisplayPathfinding() {
 		Vector3 a = testNodes[i - 1];
 		Vector3 b = testNodes[i];
 		
-		Debug::DrawLine(a, b, Vector4(0, 1, 0, 1));
+		//Debug::DrawLine(a, b, Vector4(0, 1, 0, 1));
 	}
 }
 
@@ -140,7 +140,7 @@ int main() {
 		if (begin) {
 			g->UpdateGame(dt);
 		}
-		//Debug::Print("Test", Vector2(1000, 40));
+		Debug::Print("Test", Vector2(1000, 40));
 	}
 	Window::DestroyGameWindow();
 }

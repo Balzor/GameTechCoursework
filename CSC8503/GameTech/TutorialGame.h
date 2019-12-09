@@ -53,13 +53,15 @@ namespace NCL {
 			GameObject* chaser2;
 			GameObject* pickupItems;
 
+			vector<GameObject*> characters;
 			GameObject* keeper;
 			GameObject* character;
 			//items saved positions
 			Transform* saveParent;
 			Vector3 save;
 			SphereVolume* appleV = new SphereVolume(0.7f);
-
+			//navgrid pathfinding
+			//NavigationGrid outPath;
 			//IT'S HAPPENING
 			GameObject* AddGooseToWorld(const Vector3& position);
 			GameObject* AddParkKeeperToWorld(const Vector3& position);
