@@ -127,7 +127,10 @@ void GameWorld::AddConstraint(Constraint* c) {
 }
 
 void GameWorld::RemoveConstraint(Constraint* c) {
-	std::remove(constraints.begin(), constraints.end(), c);
+	auto ptr = std::find(constraints.begin(), constraints.end(), c);
+	if (ptr != constraints.end()) {
+		constraints.erase(ptr);
+	}
 }
 
 void GameWorld::GetConstraintIterators(

@@ -30,7 +30,10 @@ namespace NCL {
 			}
 
 			void SetParent(Transform* newParent) {
-				parent = newParent;
+				if (((size_t)newParent) == 0xDDDDDDDD) {
+					parent = nullptr;
+				} else 
+					parent = newParent;
 			}
 			void RemoveParent() {
 				parent = nullptr;
@@ -82,7 +85,7 @@ namespace NCL {
 			Quaternion	localOrientation;
 			Quaternion  worldOrientation;
 
-			Transform*	parent;
+			Transform*	parent =nullptr;
 
 			vector<Transform*> children;
 		};

@@ -9,6 +9,7 @@ Transform::Transform()
 }
 
 Transform::Transform(const Vector3& position, Transform* p) {
+
 	parent = p;
 	SetWorldPosition(position);
 }
@@ -22,6 +23,10 @@ void Transform::UpdateMatrices() {
 		Matrix4::Translation(localPosition) * 
 		Matrix4(localOrientation) *
 		Matrix4::Scale(localScale);
+
+	if (((size_t)parent) == 0xDDDDDDDD) {
+		parent = nullptr;
+	}
 
 	if (parent) {
 		worldMatrix			= parent->GetWorldMatrix() * localMatrix;
@@ -53,12 +58,9 @@ void Transform::SetLocalPosition(const Vector3& localPos) {
 }
 
 void Transform::SetWorldScale(const Vector3& worldScale) {
-	if (parent) {
+	localScale = worldScale;
 
-	}
-	else {
-		localScale = worldScale;
-	}
+	
 }
 
 void Transform::SetLocalScale(const Vector3& newScale) {

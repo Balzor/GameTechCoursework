@@ -85,8 +85,8 @@ void PhysicsSystem::Update(float dt) {
 	while(dTOffset > iterationDt *0.5) {
 		IntegrateAccel(iterationDt); //Update accelerations from external forces
 		if (useBroadPhase) {
-			BroadPhase();
-			NarrowPhase();
+			//BroadPhase();
+			//NarrowPhase();
 		}
 		else {
 			BasicCollisionDetection();

@@ -6,8 +6,8 @@ namespace NCL {
 		public:
 			Constraint() {}
 			virtual ~Constraint() {}
-
 			virtual void UpdateConstraint(float dt) = 0;
+			bool debug = false;
 		};
 	}
 }

@@ -35,6 +35,7 @@ namespace NCL {
 			void InitMixedGridWorld(int numRows, int numCols, float rowSpacing, float colSpacing);
 			void InitCubeGridWorld(int numRows, int numCols, float rowSpacing, float colSpacing, const Vector3& cubeDims);
 			void BridgeConstraintTest();
+			void BridgeConstraintDoor();
 			void SimpleGJKTest();
 
 			bool SelectObject();
@@ -48,18 +49,26 @@ namespace NCL {
 			GameObject* AddMiniFloorToWorld(const Vector3& position, const Vector3& size,const Vector4& colour);
 			GameObject* AddSphereToWorld(const Vector3& position, float radius, float inverseMass = 10.0f);
 			GameObject* AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass = 10.0f);
+			GameObject* AddMenuToWorld(const Vector3& position, Vector3 dimensions);
 			GameObject* AddTriggerToWorld(const Vector3& position, Vector3 dimensions,string name);
+			GameObject* AddButtonToWorld(const Vector3& position, Vector3 dimensions, Vector3 colour, TextureBase* tex);
 			GameObject* trigger;
 			GameObject* picker;
 			GameObject* chaser;
 			GameObject* chaser2;
 			GameObject* pickupItems;
 
+			GameObject* menu = new GameObject("menu");
+
+
+			/*GameObject* start, * block, *end;
+			Constraint* slidingDoorConstraint = nullptr;*/
+
 			vector<GameObject*> characters;
 			GameObject* keeper;
 			GameObject* character;
 			//items saved positions
-			Transform* saveParent;
+			Transform* saveParent = nullptr;
 			Vector3 save;
 			SphereVolume* appleV = new SphereVolume(0.7f);
 			//navgrid pathfinding
@@ -91,6 +100,7 @@ namespace NCL {
 			OGLMesh*	cubeMesh	= nullptr;
 			OGLMesh*	sphereMesh	= nullptr;
 			OGLTexture* basicTex	= nullptr;
+			OGLTexture* gooseTex	= nullptr;
 			OGLShader*	basicShader = nullptr;
 
 			//Coursework Meshes
@@ -116,8 +126,6 @@ namespace NCL {
 
 			void LockCameraToObject(GameObject* o) {
 				lockedObject = o;
-
-
 			}
 		};
 	}
