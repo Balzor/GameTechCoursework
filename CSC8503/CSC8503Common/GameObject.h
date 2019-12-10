@@ -9,6 +9,7 @@
 
 #include <vector>
 
+
 using std::vector;
 
 namespace NCL {
@@ -88,9 +89,9 @@ namespace NCL {
 			void SetInitPos(Vector3 p) {
 				position = p;
 			}
-
 			
-			void Pathfind(Vector3 chaser, Vector3 goose);
+			
+			void Pathfind(GameObject* chaserObj, Vector3 chaserPos,GameObject* gooseObj, Vector3 goose,bool hard);
 			vector<Vector3> testNodes;
 		protected:
 			NavigationGrid* grid;

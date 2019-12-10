@@ -14,7 +14,6 @@ GameObject::GameObject(string objectName)	{
 
 	grid = new NavigationGrid ("TestGrid1.txt");
 }
-
 GameObject::~GameObject()	{
 	delete boundingVolume;
 	delete physicsObject;
@@ -22,15 +21,24 @@ GameObject::~GameObject()	{
 	delete networkObject;
 	delete grid;
 }
-void GameObject::Pathfind(Vector3 chaser,Vector3 goose) {
+float lerp(float a, float b, float f)
+{
+	return a + f * (b - a);
+}
+void GameObject::Pathfind(GameObject* chaserObj,Vector3 chaserPos, GameObject* gooseObj,Vector3 goose,bool hard) {
 	testNodes.clear();
 	NavigationPath outPath;
 
 	
-	Vector3 startPos(chaser.x+90,0,chaser.z+90);
+	Vector3 startPos(chaserPos.x+90,0,chaserPos.z+90);
 	Vector3 endPos(goose.x + 90, 0, goose.z + 90);
-
+	
 	bool found = grid->FindPath(startPos, endPos, outPath);
+	Matrix4 vie2 = chaserObj->GetTransform().GetWorldMatrix().BuildViewMatrix(chaserPos, goose,Vector3(0,0,0));
+	Matrix4 camWorld = vie2;
+	Vector3 rightAxis = Vector3(camWorld.GetColumn(0));
+	Vector3 fwdAxis = Vector3::Cross(Vector3(0, 40, 0), rightAxis);
+	
 	Vector3 pos;
 	while (outPath.PopWaypoint(pos)) {
 		pos.x = pos.x - 90;
@@ -39,11 +47,30 @@ void GameObject::Pathfind(Vector3 chaser,Vector3 goose) {
 		testNodes.push_back(pos);
 	}
 	for (int i = 1; i < testNodes.size(); ++i) {
+		float diff = chaserPos.z - goose.z;
 		Vector3 a = testNodes[i - 1];
 		Vector3 b = testNodes[i];
 
-		Debug::DrawLine(a, b, Vector4(0, 1, 0, 1));
-		//i->GetTransform().SetLocalPosition(b);
+		Debug::DrawLine(a, b, Vector4(1, 0, 0, 1));
+
+		chaserObj->GetTransform().SetLocalOrientation(gooseObj->GetTransform().GetLocalOrientation());
+		
+		
+		if (gooseObj->GetTag() == "hold") {
+			if (hard != true) {
+				chaserObj->GetPhysicsObject()->AddForce(-fwdAxis);
+
+				if (chaserPos.z > goose.z) {
+					chaserObj->GetPhysicsObject()->AddForce(Vector3(0, 0, -50));
+				}
+				else {
+					chaserObj->GetPhysicsObject()->AddForce(Vector3(0, 0, 50));
+				}
+			}
+			else {
+				chaserObj->GetTransform().SetLocalPosition(goose);
+			}				
+		}
 	}
 }
 bool GameObject::GetBroadphaseAABB(Vector3&outSize) const {

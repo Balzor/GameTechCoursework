@@ -13,6 +13,8 @@ namespace NCL {
 			virtual void UpdateGame(float dt);
 
 		protected:
+			bool beHard;
+
 			void InitialiseAssets();
 
 			void InitCamera();
@@ -69,7 +71,7 @@ namespace NCL {
 			GameObject* AddAppleToWorld(const Vector3& position);
 			GameObject* AddTreeToWorld(const Vector3& position);
 			GameObject* AddTreeLeafToWorld(const Vector3& position);
-			GameObject* AddTrampolineToWorld(const Vector3& position, const Vector4& colour,float bounciness);
+			GameObject* AddTrampolineToWorld(const Vector3& position, const Vector3& size, const Vector4& colour,float bounciness);
 			GameObject* AddIslandToWorld(const Vector3& position);
 			GameObject* AddBaseFloorToWorld(const Vector3& position, const Vector3& size, const Vector4& colour);
 			GameObject* AddWaterFloorToWorld(const Vector3& position, const Vector3& size, const Vector4& colour);
@@ -80,7 +82,6 @@ namespace NCL {
 			GameWorld*			world;
 
 			bool useGravity;
-			bool beHard;
 			bool inSelectionMode;
 
 			float		forceMagnitude;
