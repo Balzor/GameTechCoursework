@@ -23,12 +23,12 @@ TutorialGame::TutorialGame()	{
 	physics = new PhysicsSystem(*world);
 
 	forceMagnitude = 10.0f;
-	useGravity = false;
+	useGravity = true;
 	beHard = false;
 	inSelectionMode = true;
 
 	
-
+	physics->UseGravity(useGravity);
 	Debug::SetRenderer(renderer);
 
 	InitialiseAssets();
@@ -88,7 +88,7 @@ void TutorialGame::UpdateGame(float dt) {
 	if (started) {
 		if (endTimer < 1) {
 			renderer->DrawString("TIME UP", Vector2(180, 180));
-			renderer->DrawString("Final Score: " + std::to_string(applesPicked + (killCounter * 3) - caught), Vector2(500, 180));
+			renderer->DrawString("Final Score: " + std::to_string(applesPicked +(itemsPicked*2) + (killCounter * 3) - caught), Vector2(500, 180));
 			renderer->DrawString("Press F1 to play again", Vector2(180, 160));
 			renderer->DrawString("Press ESC to exit game", Vector2(180, 140));
 			if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F1)) {
@@ -111,14 +111,15 @@ void TutorialGame::UpdateGame(float dt) {
 			renderer->DrawString("Time left: " + std::to_string(endTimer), Vector2(10, 160));
 			renderer->DrawString("Humans killed: " + std::to_string(killCounter), Vector2(10, 60));
 			renderer->DrawString("Apples Picked: " + std::to_string(applesPicked), Vector2(10, 80));
-			renderer->DrawString("Score: " + std::to_string(applesPicked + (killCounter * 3) - caught), Vector2(10, 100));
-			renderer->DrawString("Stamina: " + std::to_string(stamina), Vector2(10, 120));
-			renderer->DrawString("Times Caught: " + std::to_string(caught), Vector2(10, 140), Vector4(1, 0, 0, 1));
+			renderer->DrawString("Items Picked: " + std::to_string(itemsPicked), Vector2(10, 100));
+			renderer->DrawString("Score: " + std::to_string(applesPicked+(itemsPicked*2) + (killCounter * 3) - caught), Vector2(10, 120));
+			renderer->DrawString("Stamina: " + std::to_string(stamina), Vector2(10, 140));
+			renderer->DrawString("Times Caught: " + std::to_string(caught), Vector2(10, 180), Vector4(1, 0, 0, 1));
 			if (useGravity) {
-				Debug::Print("(G)ravity on", Vector2(10, 40));
+				//Debug::Print("(G)ravity on", Vector2(10, 40));
 			}
 			else {
-				Debug::Print("(G)ravity off", Vector2(10, 40));
+				//Debug::Print("(G)ravity off", Vector2(10, 40));
 			}
 			if (beHard) {
 				Debug::Print("Press H for easy mode", Vector2(20, 20));
@@ -134,9 +135,14 @@ void TutorialGame::UpdateGame(float dt) {
 		else {
 			world->GetMainCamera()->UpdateCamera(dt);
 		}
+
 		for (GameObject* i : characters) {
 			i->Pathfind(i, i->GetTransform().GetLocalPosition(), lockedObject, lockedObject->GetTransform().GetLocalPosition(), beHard);
-
+			if (i->GetTransform().GetLocalPosition().y <= -30) {
+				killCounter++;
+				i->GetTransform().SetLocalPosition(i->GetInitPos());
+			}
+			
 		}
 
 		UpdateKeys();
@@ -144,16 +150,9 @@ void TutorialGame::UpdateGame(float dt) {
 
 
 		if (lockedObject->GetTransform().GetLocalPosition().y < -25) {
-			InitWorld();
+			//InitWorld();
+			lockedObject->GetTransform().SetLocalPosition(lockedObject->GetInitPos());
 			//Respawn();
-		}
-		if (ch1 != nullptr) {
-			if (ch1->GetTransform().GetLocalPosition().y <= -30) {
-				//world->RemoveGameObject(ch1);
-				ch1 = nullptr;
-				killCounter++;
-				//return;
-			}
 		}
 	}
 	else {
@@ -269,7 +268,7 @@ void TutorialGame::LockedObjectMovement() {
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::Q)) {
 		if (lockedObject->GetTag() != "hold") {
 			for (GameObject* obj : physics->GetPickupList()) {
-				if (obj->GetName() == "apple" || obj->GetName() == "cube") {
+				if (obj->GetName() == "apple" || obj->GetName() == "pickable") {
 					saveParent = obj->GetTransform().GetParent();
 					lockedObject->SetTag("hold");
 					obj->GetTransform().SetParent(&lockedObject->GetTransform());
@@ -295,7 +294,12 @@ void TutorialGame::LockedObjectMovement() {
 			for (GameObject* obj : physics->GetPickupList()) {
 				if (obj->GetName() == "base") {
 					std::cout << "u on base now" << std::endl;
-					applesPicked++;
+					if (pickupItems->GetName() == "apple") {
+						applesPicked++;
+					}else {
+						itemsPicked++;
+					}
+					
 					stamina = 100;
 					//character->GetTransform().SetLocalPosition(character->GetInitPos());
 					for (GameObject* i : characters) {
@@ -318,12 +322,25 @@ void TutorialGame::LockedObjectMovement() {
 	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::D)) {//RIGHT
 		selectionObject->GetPhysicsObject()->AddForce(rightAxis*100);
 	}
+	if (pickupItems != nullptr) {
+		for (GameObject* obj : physics->GetPickupList()) {
+			if (obj->GetName() == "water") {
+				pickupItems->GetTransform().SetParent(saveParent);
+				pickupItems->GetTransform().SetLocalPosition(pickupItems->GetInitPos());
+				pickupItems->GetPhysicsObject()->SetInverseMass(1);
+				pickupItems->SetBoundingVolume((CollisionVolume*)appleV);
+				lockedObject->SetTag("");
 
+			}
+		}
+	}
+	
 	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::W)) {//FRWD
 		for (GameObject* obj : physics->GetPickupList()) {
 			if (obj->GetName() == "water") {
 				//std::cout << "u on water now" << std::endl;
 				selectionObject->GetPhysicsObject()->AddForce(fwdAxis * 1);
+
 			}
 		}
 		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SHIFT)) {
@@ -571,35 +588,36 @@ void TutorialGame::InitCamera() {
 void TutorialGame::InitWorld() {
 	killCounter = 0;
 	applesPicked = 0;
+	itemsPicked = 0;
 	stamina = 100;
 	caught = 0;
 	characters.clear();
 	world->ClearAndErase();
 	physics->Clear();
 
-		//InitMixedGridWorld(10, 10, 3.5f, 3.5f);
-		AddGooseToWorld(Vector3(-100, 4, -200));
-		AddAppleToWorld(Vector3(35, 2, 0));
-		AddAppleToWorld(Vector3(-105, -13.9, -200));
+	//InitMixedGridWorld(10, 10, 3.5f, 3.5f);
+	AddGooseToWorld(Vector3(-100, 4, -200));
+	AddAppleToWorld(Vector3(35, 2, 0));
+	AddAppleToWorld(Vector3(-105, -13.9, -200));
 
-		AddParkKeeperToWorld(Vector3(40, 2, 0));
-		AddCharacterToWorld(Vector3(152.607, -16.0649, -44.5025));
-		AddCharacterToWorld(Vector3(152.607 + 10, -16.0649, -44.5025));
-		AddCharacterToWorld(Vector3(152.607 + 20, -16.0649, -44.5025));
+	AddParkKeeperToWorld(Vector3(40, 2, 0));
+	AddCharacterToWorld(Vector3(152.607, -16.0649, -44.5025));
+	AddCharacterToWorld(Vector3(152.607 + 10, -16.0649, -44.5025));
+	AddCharacterToWorld(Vector3(152.607 + 20, -16.0649, -44.5025));
 
 
-		AddIslandToWorld(Vector3(200, -19, 200));
-		AddFloorToWorld(Vector3(0, -19, 0), Vector3(100, 2, 100));
-		AddMiniFloorToWorld(Vector3(0, -19, 0), Vector3(20, 0.1, 50), Vector4(0.25, 0.47, 0.30, 1));
+	AddIslandToWorld(Vector3(200, -19, 200));
+	AddFloorToWorld(Vector3(0, -19, 0), Vector3(100, 2, 100));
+	AddMiniFloorToWorld(Vector3(0, -19, 0), Vector3(20, 0.1, 50), Vector4(0.25, 0.47, 0.30, 1));
 
-		AddTreeToWorld(Vector3(0, -18, 0));
+	AddTreeToWorld(Vector3(0, -18, 0));
 
-		AddTrampolineToWorld(Vector3(50, -17, 50), Vector3(4, 0.5, 4), Vector4(0.55, 0.27, 0.07, 1), 20.0f);
+	AddTrampolineToWorld(Vector3(50, -17, 50), Vector3(4, 0.5, 4), Vector4(0.55, 0.27, 0.07, 1), 20.0f);
 
-		AddMenuToWorld(Vector3(0, 50, 0), Vector3(22, 14, 3));
+	AddMenuToWorld(Vector3(0, 50, 0), Vector3(22, 14, 3));
 
-		BridgeConstraintTest();
-		BridgeConstraintDoor();
+	BridgeConstraintTest();
+	BridgeConstraintDoor();
 	
 }
 
@@ -641,37 +659,37 @@ GameObject* TutorialGame::AddIslandToWorld(const Vector3& position) {
 
 	//water
 	AddWaterFloorToWorld(Vector3(-150, -19, 200), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(Vector3(-150, -20, 200), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5),2.0f);
+	AddWaterFloor2ToWorld(Vector3(-150, -20, 200), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
 
 	AddWaterFloorToWorld(Vector3(-150, -19, 0), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(Vector3(-150, -20, 0), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5),2.0f);
+	AddWaterFloor2ToWorld(Vector3(-150, -20, 0), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
 
 	AddWaterFloorToWorld(Vector3(250, -19, -200), Vector3(50, 0.3,100 ), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(Vector3(250, -20, -200), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5), 2.0f);
+	AddWaterFloor2ToWorld(Vector3(250, -20, -200), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
 	
 	AddWaterFloorToWorld(Vector3(350, -19, -200), Vector3(50, 0.3,100 ), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(Vector3(350, -20, -200), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5), 2.0f);
+	AddWaterFloor2ToWorld(Vector3(350, -20, -200), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
 	
 	AddWaterFloorToWorld(Vector3(350, -19, 0), Vector3(50, 0.3,100 ), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(Vector3(350, -20, 0), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5), 2.0f);
+	AddWaterFloor2ToWorld(Vector3(350, -20, 0), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
 	
 	AddWaterFloorToWorld(Vector3(350, -19, 200), Vector3(50, 0.3,100 ), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(Vector3(350, -20, 200), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5), 2.0f);
+	AddWaterFloor2ToWorld(Vector3(350, -20, 200), Vector3(50, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
 	
 	AddWaterFloorToWorld(Vector3(300, -19, 350), Vector3(100, 0.3, 50 ), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(Vector3(300, -20, 350), Vector3(100, 0.3, 50), Vector4(0.00, 0.41, 0.58, .5), 2.0f);
+	AddWaterFloor2ToWorld(Vector3(300, -20, 350), Vector3(100, 0.3, 50), Vector4(0.00, 0.41, 0.58, .5));
 	
 	AddWaterFloorToWorld(Vector3(100, -19, 350), Vector3(100, 0.3, 50 ), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(Vector3(100, -20, 350), Vector3(100, 0.3, 50), Vector4(0.00, 0.41, 0.58, .5), 2.0f);
+	AddWaterFloor2ToWorld(Vector3(100, -20, 350), Vector3(100, 0.3, 50), Vector4(0.00, 0.41, 0.58, .5));
 	
 	AddWaterFloorToWorld(Vector3(-100, -19, 350), Vector3(100, 0.3, 50 ), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(Vector3(-100, -20, 350), Vector3(100, 0.3, 50), Vector4(0.00, 0.41, 0.58, .5), 2.0f);
+	AddWaterFloor2ToWorld(Vector3(-100, -20, 350), Vector3(100, 0.3, 50), Vector4(0.00, 0.41, 0.58, .5));
 
 	AddWaterFloorToWorld(position + Vector3(-100, 0, -400), Vector3(100, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(position + Vector3(-100, -1, -400), Vector3(100, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5), 2.0f);
+	AddWaterFloor2ToWorld(position + Vector3(-100, -1, -400), Vector3(100, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
 
 	AddWaterFloorToWorld(position + Vector3(-300, 0, -400), Vector3(100, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
-	AddTrampolineToWorld(position + Vector3(-300, -1, -400), Vector3(100, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5), 2.0f);
+	AddWaterFloor2ToWorld(position + Vector3(-300, -1, -400), Vector3(100, 0.3, 100), Vector4(0.00, 0.41, 0.58, .5));
 	
 	AddMiniFloorToWorld(position + Vector3(-300, 1, -400), Vector3(50, 3, 50), Vector4(0.40, 0.27, 0.0, 1)); //brown on den
 	AddMiniFloorToWorld(position + Vector3(-300, 4, -400), Vector3(50, 0.1, 50), Vector4(0.25, 0.47, 0.30, 1));//green on den
@@ -716,11 +734,14 @@ GameObject* TutorialGame::AddIslandToWorld(const Vector3& position) {
 	AddTreeToWorld(position + Vector3(-340, 4, -440));
 	//home base
 	AddBaseFloorToWorld(Vector3(-112.015, -13.9, -238.057), Vector3(10, 1, 10), Vector4(0.55, 0.27, 0.07, 1));
-	//for (int i = 0; i < 20; i++) {
-		int a = (rand() % 200);
-		int b = (rand() % 200);
-		AddAppleToWorld(Vector3(a, 40, b));
-	//}
+	
+	AddAppleToWorld(Vector3(0, 20, 0));
+
+	AddPickablesToWorld(Vector3(10, 0, 10), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
+	AddPickablesToWorld(Vector3(240, 0, -76), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
+	AddPickablesToWorld(Vector3(238, 0, -55), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
+	AddPickablesToWorld(Vector3(220, 25, -20), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
+	
 	return 0;
 }
 GameObject* TutorialGame::AddWaterFloorToWorld(const Vector3& position, const Vector3& size, const Vector4& colour) {
@@ -729,6 +750,25 @@ GameObject* TutorialGame::AddWaterFloorToWorld(const Vector3& position, const Ve
 	Vector3 floorSize = size;
 	AABBVolume* volume = new AABBVolume(floorSize);
 	//water->SetBoundingVolume((CollisionVolume*)volume);
+	water->GetTransform().SetWorldScale(floorSize);
+	water->GetTransform().SetWorldPosition(position);
+
+	water->SetRenderObject(new RenderObject(&water->GetTransform(), cubeMesh, nullptr, basicShader));
+	water->SetPhysicsObject(new PhysicsObject(&water->GetTransform(), water->GetBoundingVolume(), .0f));
+	water->GetRenderObject()->SetColour(colour);
+	water->GetPhysicsObject()->SetInverseMass(0);
+	water->GetPhysicsObject()->InitCubeInertia();
+
+	world->AddGameObject(water);
+
+	return water;
+}
+GameObject* TutorialGame::AddWaterFloor2ToWorld(const Vector3& position, const Vector3& size, const Vector4& colour) {
+	GameObject* water = new GameObject("water");
+
+	Vector3 floorSize = size;
+	AABBVolume* volume = new AABBVolume(floorSize);
+	water->SetBoundingVolume((CollisionVolume*)volume);
 	water->GetTransform().SetWorldScale(floorSize);
 	water->GetTransform().SetWorldPosition(position);
 
@@ -886,6 +926,26 @@ GameObject* TutorialGame::AddCubeToWorld(const Vector3& position, Vector3 dimens
 
 	return cube;
 }
+GameObject* TutorialGame::AddPickablesToWorld(const Vector3& position, Vector3 dimensions,Vector4& colour) {
+	GameObject* pickable = new GameObject("pickable");
+
+	AABBVolume* volume = new AABBVolume(dimensions);
+
+	pickable->SetBoundingVolume((CollisionVolume*)volume);
+
+	pickable->GetTransform().SetWorldPosition(position);
+	pickable->GetTransform().SetWorldScale(dimensions);
+	pickable->SetInitPos(position);
+	pickable->SetRenderObject(new RenderObject(&pickable->GetTransform(), cubeMesh, basicTex, basicShader));
+	pickable->SetPhysicsObject(new PhysicsObject(&pickable->GetTransform(), pickable->GetBoundingVolume(),0.1f));
+	pickable->GetRenderObject()->SetColour(colour);
+	pickable->GetPhysicsObject()->SetInverseMass(1);
+	pickable->GetPhysicsObject()->InitCubeInertia();
+
+	world->AddGameObject(pickable);
+
+	return pickable;
+}
 GameObject* TutorialGame::AddButtonToWorld(const Vector3& position, Vector3 dimensions,Vector3 colour,TextureBase* tex) {
 	GameObject* cube = new GameObject("cube");
 
@@ -972,7 +1032,7 @@ GameObject* TutorialGame::AddGooseToWorld(const Vector3& position)
 
 	lockedObject = goose;
 	selectionObject = goose;
-
+	lockedObject->SetInitPos(position);
 	trigger = AddTriggerToWorld(position, Vector3(5, 3, 20),"trigger");
 	picker = AddTriggerToWorld(position, Vector3(3, 3, 3),"pickup");
 
@@ -982,35 +1042,35 @@ void TutorialGame::Respawn() {
 	
 	AddGooseToWorld(Vector3(30, 2, 0));
 }
-void TutorialGame::Chase(GameObject* chaser) {
-	//write here
-	for (GameObject* obj : physics->GetChaseList()) {
-		if (obj->GetName() == "goose") {
-			if (obj->GetTag() == "hold") {
-				//std::cout << "gonna chase a goose" << std::endl;
-				//character->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition());
-				int whereX = chaser->GetTransform().GetLocalPosition().x - lockedObject->GetTransform().GetLocalPosition().x;
-
-				int whereY = chaser->GetTransform().GetLocalPosition().y;
-				int whereZ = chaser->GetTransform().GetLocalPosition().z - lockedObject->GetTransform().GetLocalPosition().z;
-
-				//chaser->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition() + Vector3(whereX, 0, whereZ));
-
-				if (beHard) {
-					chaser->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition());
-				}
-				else {
-					chaser->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition() + Vector3(whereX, 0, whereZ));
-				}
-
-				
-			}
-			else {
-				//std::cout << "not gonna chase a goose" << std::endl;
-			}
-		}
-	}
-}
+//void TutorialGame::Chase(GameObject* chaser) {
+//	//write here
+//	for (GameObject* obj : physics->GetChaseList()) {
+//		if (obj->GetName() == "goose") {
+//			if (obj->GetTag() == "hold") {
+//				//std::cout << "gonna chase a goose" << std::endl;
+//				//character->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition());
+//				int whereX = chaser->GetTransform().GetLocalPosition().x - lockedObject->GetTransform().GetLocalPosition().x;
+//
+//				int whereY = chaser->GetTransform().GetLocalPosition().y;
+//				int whereZ = chaser->GetTransform().GetLocalPosition().z - lockedObject->GetTransform().GetLocalPosition().z;
+//
+//				//chaser->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition() + Vector3(whereX, 0, whereZ));
+//
+//				if (beHard) {
+//					chaser->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition());
+//				}
+//				else {
+//					chaser->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition() + Vector3(whereX, 0, whereZ));
+//				}
+//
+//				
+//			}
+//			else {
+//				//std::cout << "not gonna chase a goose" << std::endl;
+//			}
+//		}
+//	}
+//}
 GameObject* TutorialGame::AddParkKeeperToWorld(const Vector3& position)
 {
 	float meshSize = 4.0f;

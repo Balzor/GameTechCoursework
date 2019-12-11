@@ -84,6 +84,8 @@ namespace NCL {
 			GameObject* AddIslandToWorld(const Vector3& position);
 			GameObject* AddBaseFloorToWorld(const Vector3& position, const Vector3& size, const Vector4& colour);
 			GameObject* AddWaterFloorToWorld(const Vector3& position, const Vector3& size, const Vector4& colour);
+			GameObject* AddWaterFloor2ToWorld(const Vector3& position, const Vector3& size, const Vector4& colour);
+			GameObject* AddPickablesToWorld(const Vector3& position, Vector3 dimensions, Vector4& colour);
 
 
 			GameTechRenderer*	renderer;
@@ -117,6 +119,7 @@ namespace NCL {
 			GameObject* difficulty	= nullptr;
 			int killCounter=0;
 			int applesPicked = 0;
+			int itemsPicked = 0;
 			float stamina = 100;
 			int caught = 0;
 			int endTimer=10800;
