@@ -32,8 +32,6 @@ TutorialGame::TutorialGame()	{
 	Debug::SetRenderer(renderer);
 
 	InitialiseAssets();
-
-	
 }
 
 /*
@@ -62,6 +60,8 @@ void TutorialGame::InitialiseAssets() {
 
 	basicTex	= (OGLTexture*)TextureLoader::LoadAPITexture("checkerboard.png");
 	gooseTex = (OGLTexture*)TextureLoader::LoadAPITexture("goose.jpg");
+	brickTex = (OGLTexture*)TextureLoader::LoadAPITexture("brick.png");
+	dogeTex = (OGLTexture*)TextureLoader::LoadAPITexture("doge.png");
 	basicShader = new OGLShader("GameTechVert.glsl", "GameTechFrag.glsl");
 
 	InitCamera();
@@ -226,6 +226,7 @@ void TutorialGame::UpdateKeys() {
 int po = 1;
 int po2 = 0;
 int countPo = 0;
+Vector3 byebye = Vector3(0, -100, 0);
 void TutorialGame::LockedObjectMovement() {
 	Matrix4 view		= world->GetMainCamera()->BuildViewMatrix();
 	Matrix4 camWorld	= view.Inverse();
@@ -290,7 +291,6 @@ void TutorialGame::LockedObjectMovement() {
 		}
 		else {
 			lockedObject->SetTag("");
-			
 			for (GameObject* obj : physics->GetPickupList()) {
 				if (obj->GetName() == "base") {
 					std::cout << "u on base now" << std::endl;
@@ -299,7 +299,10 @@ void TutorialGame::LockedObjectMovement() {
 					}else {
 						itemsPicked++;
 					}
-					
+					pickupItems->GetTransform().SetParent(nullptr);
+					pickupItems->GetTransform().SetLocalPosition(byebye);
+					pickupItems->GetPhysicsObject()->SetInverseMass(0);
+					pickupItems->SetBoundingVolume((CollisionVolume*)appleV);
 					stamina = 100;
 					//character->GetTransform().SetLocalPosition(character->GetInitPos());
 					for (GameObject* i : characters) {
@@ -1242,9 +1245,11 @@ void TutorialGame::BridgeConstraintDoor() {
 
 	Vector3 startPos = Vector3(145, -12, 31);
 
-	GameObject* start = AddCubeToWorld(startPos + Vector3(0, 0, 0), cubeSize, 0);
+	//GameObject* start = AddCubeToWorld(startPos + Vector3(0, 0, 0), cubeSize, 0);
+	GameObject* start = AddMiniFloorToWorld(startPos, cubeSize, Vector4(0.40, 0.33, 0.00, 1));
 
-	GameObject* end = AddCubeToWorld(startPos + Vector3(11, 0, 0), cubeSize, 0);
+	//GameObject* end = AddCubeToWorld(startPos + Vector3(11, 0, 0), cubeSize, 0);
+	GameObject* end = AddMiniFloorToWorld(startPos + Vector3(11, 0, 0), cubeSize, Vector4(0.40, 0.33, 0.00, 1));
 
 	GameObject* previous = start;
 
@@ -1252,6 +1257,7 @@ void TutorialGame::BridgeConstraintDoor() {
 	world->AddConstraint(constraint);
 
 	for (int i = 0; i < numLinks; ++i) {
+		//GameObject* block = AddCubeToWorld(startPos + Vector3( 0, 0, 0), cubeSize2, invCubeMass);
 		GameObject* block = AddCubeToWorld(startPos + Vector3( 0, 0, 0), cubeSize2, invCubeMass);
 
 		PositionConstraint* constraint = new PositionConstraint(previous, block, 5);

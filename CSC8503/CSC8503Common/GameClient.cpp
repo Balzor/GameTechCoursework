@@ -59,7 +59,7 @@ void GameClient::SendPacket(GamePacket&  payload) {
 }
 
 //void GameClient::ThreadedUpdate() {
-//	while (threadAlive) {
-//		UpdateClient();
-//	}
+	//while (threadAlive) {
+		//UpdateClient();
+	//}
 //}
