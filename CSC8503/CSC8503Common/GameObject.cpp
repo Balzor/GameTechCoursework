@@ -86,32 +86,6 @@ void GameObject::Pathfind(GameObject* chaserObj,Vector3 chaserPos, GameObject* g
 	Matrix4 camWorld = vie2;
 	Vector3 rightAxis = Vector3(camWorld.GetColumn(0));
 	Vector3 fwdAxis = Vector3::Cross(Vector3(0, 40, 0), rightAxis);
-
-	//rotation
-	//yawLocked -= (Window::GetMouse()->GetRelativePosition().x);
-	yawLocked -= (gooseObj->GetTransform().GetWorldPosition().x);
-
-	Quaternion objOri = gooseObj->GetTransform().GetWorldOrientation();
-	Vector3 objPos = gooseObj->GetTransform().GetWorldPosition();
-
-	//pitchLocked = min(pitchLocked, 90.0f);
-	//pitchLocked = max(pitchLocked, -90.0f);
-
-	Quaternion q = Quaternion::EulerAnglesToQuaternion(0, yawLocked, 0);
-
-	Quaternion n = objOri * q;
-	
-
-	Vector3 npos = n * Vector3(0, 0, 10);
-	Vector3 camPos = objPos + npos;
-	Matrix4 temp = Matrix4::BuildViewMatrix(camPos, objPos, Vector3(0, 1, 0));
-
-	Matrix4 modelMat = temp.Inverse();
-
-	Quaternion q1(temp);
-	Vector3 angles = q1.ToEuler(); //nearly there now!
-	//chaserObj->GetTransform().SetLocalOrientation(n);
-	//end rotation
 	
 	Vector3 pos;
 	while (outPath.PopWaypoint(pos)) {
@@ -125,36 +99,51 @@ void GameObject::Pathfind(GameObject* chaserObj,Vector3 chaserPos, GameObject* g
 		Vector3 a = testNodes[i - 1];
 		Vector3 b = testNodes[i];
 
-		Debug::DrawLine(a, b, Vector4(1, 0, 0, 1));
-
-		chaserObj->GetTransform().SetLocalOrientation(q1);
+		chaserObj->GetTransform().SetLocalOrientation(gooseObj->GetTransform().GetLocalOrientation());
 		
 		float length = (gooseObj->GetTransform().GetWorldPosition()-chaserObj->GetTransform().GetWorldPosition()).Length();
-		if (length < 25) {
-			if (gooseObj->GetTag() == "hold") {
-				someData = true;
-				if (hard != true) {
-					chaserObj->GetPhysicsObject()->AddForce(-fwdAxis);
+		if (chaserObj->GetName() == "character") {
+			if (length < 75) {
+				if (gooseObj->GetTag() == "hold") {
+					chaserObj->SetTag("chasing");
+					Debug::DrawLine(a, b, Vector4(1, 0, 0, 1));
+					if (hard != true) {
+						chaserObj->GetPhysicsObject()->AddForce(-fwdAxis);
 
-					if (chaserPos.z > goose.z) {
-						chaserObj->GetPhysicsObject()->AddForce(Vector3(0, 0, -50));
+						if (chaserPos.z > goose.z) {
+							chaserObj->GetPhysicsObject()->AddForce(Vector3(0, 0, -50));
+						}
+						else {
+							chaserObj->GetPhysicsObject()->AddForce(Vector3(0, 0, 50));
+						}
 					}
 					else {
-						chaserObj->GetPhysicsObject()->AddForce(Vector3(0, 0, 50));
+						chaserObj->GetTransform().SetLocalPosition(goose);
 					}
-				}
-				else {
-					chaserObj->GetTransform().SetLocalPosition(goose);
 				}
 			}
 			else {
-				someData = false;
+				chaserObj->SetTag("idle");
 			}
 		}
-		
-	}
-	//TestStateMachine();
+		else {
+			if (gooseObj->GetTag() == "hold") {
+				chaserObj->SetTag("chasing");
+				Debug::DrawLine(a, b, Vector4(0, 0, 1, 1));
+				chaserObj->GetPhysicsObject()->AddForce(-fwdAxis);
 
+				if (chaserPos.z > goose.z) {
+					chaserObj->GetPhysicsObject()->AddForce(Vector3(0, 0, -50));
+				}
+				else {
+					chaserObj->GetPhysicsObject()->AddForce(Vector3(0, 0, 50));
+				}
+			}
+			else {
+				chaserObj->SetTag("idle");
+			}
+		}
+	}
 }
 bool GameObject::GetBroadphaseAABB(Vector3&outSize) const {
 	if (!boundingVolume) {

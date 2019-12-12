@@ -9,14 +9,16 @@
 #include <thread>
 #include <chrono>
 
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <sstream> 
+
 #include "../CSC8503Common/PositionConstraint.h"
 #include "../CSC8503Common/NavigationGrid.h"
 
-
 using namespace NCL;
 using namespace CSC8503;
-
-
 TutorialGame::TutorialGame()	{
 	world = new GameWorld();
 	renderer = new GameTechRenderer(*world);
@@ -33,7 +35,7 @@ TutorialGame::TutorialGame()	{
 
 	InitialiseAssets();
 }
-
+bool inStart = true;
 /*
 
 Each of the little demo scenarios used in the game uses the same 2 meshes, 
@@ -56,6 +58,7 @@ void TutorialGame::InitialiseAssets() {
 	loadFunc("CharacterF.msh", &charB);
 	loadFunc("Apple.msh"	 , &appleMesh);
 	loadFunc("raptor.msh"	 , &raptorMesh);
+	loadFunc("hellknight.msh"	 , &hellkeeperMesh);
 
 
 	basicTex	= (OGLTexture*)TextureLoader::LoadAPITexture("checkerboard.png");
@@ -83,15 +86,38 @@ TutorialGame::~TutorialGame()	{
 }
 bool again=false;
 bool started = false;
+string line;
+int check;
 void TutorialGame::UpdateGame(float dt) {
 	
 	if (started) {
 		if (endTimer < 1) {
+			std::ifstream readScore("highscore.txt");
+			if (readScore.is_open()) {
+				while (std::getline(readScore, line)) {
+					std::stringstream s(line);
+					s >> check;
+				}
+				readScore.close();
+			}
+			if (check < (applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught)) {
+				std::ofstream writeScore("highscore.txt");
+				if (writeScore.is_open()) {
+					writeScore << std::to_string(applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught) << std::endl;
+					check = applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught;
+					writeScore.close();
+				}
+			}
 			renderer->DrawString("TIME UP", Vector2(180, 180));
 			renderer->DrawString("Final Score: " + std::to_string(applesPicked +(itemsPicked*2) + (killCounter * 3) - caught), Vector2(500, 180));
+			renderer->DrawString("HighScore: " + std::to_string(check), Vector2(500, 200));
 			renderer->DrawString("Press F1 to play again", Vector2(180, 160));
 			renderer->DrawString("Press ESC to exit game", Vector2(180, 140));
+			
+			
+			
 			if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F1)) {
+				inStart = true;
 				endTimer = 10800;
 				//again = true;
 			}
@@ -141,6 +167,7 @@ void TutorialGame::UpdateGame(float dt) {
 			if (i->GetTransform().GetLocalPosition().y <= -30) {
 				killCounter++;
 				i->GetTransform().SetLocalPosition(i->GetInitPos());
+				//AddHellKeeperToWorld(Vector3(50, 2, 0));
 			}
 			
 		}
@@ -158,10 +185,6 @@ void TutorialGame::UpdateGame(float dt) {
 	else {
 		renderer->DrawString("Single Player", Vector2(50, 450));
 	}
-	
-	//Chase(character);
-	//Chase(keeper);
-
 	SelectObject();
 	MoveSelectedObject();
 
@@ -185,6 +208,7 @@ void TutorialGame::UpdateKeys() {
 	}
 	
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F1)) {
+		inStart = true;
 		throw 20;
 		//InitWorld(); //We can reset the simulation at any time with F1
 	}
@@ -235,10 +259,18 @@ void TutorialGame::LockedObjectMovement() {
 	//so we can take a guess, and use the cross of straight up, and
 	//the right axis, to hopefully get a vector that's good enough!
 	Vector3 fwdAxis = Vector3::Cross(Vector3(0, 20, 0), rightAxis);
+	if (stunned) {
+		stunnedCounter++;
+		renderer->DrawString("stunned", Vector2(200, 200), Vector4(1, 1, 1, 1));
+		if (stunnedCounter == 150) {
+			stunned = false;
+			stunnedCounter = 0;
+		}
+	}
 	if (lockedObject->GetTag() == "hold") {
 		for (GameObject* check : physics->GetPickupList()) {
 			if (check->GetName() == "character") {
-				std::cout << check->GetInitPos() << std::endl;
+				
 				caught++;
 				pickupItems->GetTransform().SetParent(saveParent);
 				pickupItems->GetTransform().SetLocalPosition(pickupItems->GetInitPos());
@@ -246,6 +278,17 @@ void TutorialGame::LockedObjectMovement() {
 				pickupItems->SetBoundingVolume((CollisionVolume*)appleV);
 				lockedObject->SetTag("");
 
+			}
+			if (check->GetName() == "keeper") {
+				lockedObject->GetPhysicsObject()->AddForceAtPosition(Vector3(0,5000,0),lockedObject->GetTransform().GetLocalPosition());
+				//std::cout << check->GetInitPos() << std::endl;
+				caught++;
+				pickupItems->GetTransform().SetParent(saveParent);
+				pickupItems->GetTransform().SetLocalPosition(pickupItems->GetInitPos());
+				pickupItems->GetPhysicsObject()->SetInverseMass(1);
+				pickupItems->SetBoundingVolume((CollisionVolume*)appleV);
+				lockedObject->SetTag("");
+				stunned = true;
 			}
 		}
 	}
@@ -318,83 +361,88 @@ void TutorialGame::LockedObjectMovement() {
 			}
 		}
 	}
-	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::A)) {//LEFT
-		selectionObject->GetPhysicsObject()->AddForce(-rightAxis*100);
-	}
+	if (!stunned) {
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::A)) {//LEFT
+			lockedObject->GetPhysicsObject()->AddForce(-rightAxis * 100);
+		}
 
-	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::D)) {//RIGHT
-		selectionObject->GetPhysicsObject()->AddForce(rightAxis*100);
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::D)) {//RIGHT
+			lockedObject->GetPhysicsObject()->AddForce(rightAxis * 100);
+		}
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::W)) {//FRWD
+			for (GameObject* obj : physics->GetPickupList()) {
+				if (obj->GetName() == "water") {
+					//std::cout << "u on water now" << std::endl;
+					lockedObject->GetPhysicsObject()->AddForce(fwdAxis * 0.1);
+
+				}
+			}
+			if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SHIFT)) {
+				if (stamina > 0) {
+					lockedObject->GetPhysicsObject()->AddForce(fwdAxis * 100);
+					stamina -= 0.5;
+				}
+				else {
+					lockedObject->GetPhysicsObject()->AddForce(fwdAxis * 3);
+				}
+			}
+			else {
+				lockedObject->GetPhysicsObject()->AddForce(fwdAxis * 5);
+			}
+		}
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::S)) {//BWRD
+			if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SHIFT)) {
+				if (stamina > 0) {
+					lockedObject->GetPhysicsObject()->AddForce(-fwdAxis * 10);
+					stamina -= 0.5;
+				}
+				else {
+					lockedObject->GetPhysicsObject()->AddForce(-fwdAxis * 3);
+				}
+			}
+			else {
+				lockedObject->GetPhysicsObject()->AddForce(-fwdAxis * 5);
+			}
+		}
+		//fly
+		if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::SPACE)) {
+			lockedObject->GetPhysicsObject()->AddForce(Vector3(0, 2000, 0));
+		}
+		if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::V)) {
+			lockedObject->GetPhysicsObject()->AddForce(Vector3(0, -1000, 0));
+		}
+		if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::NUM7)) {
+			endTimer = 10;
+		}
 	}
+	
 	if (pickupItems != nullptr) {
 		for (GameObject* obj : physics->GetPickupList()) {
 			if (obj->GetName() == "water") {
-				pickupItems->GetTransform().SetParent(saveParent);
-				pickupItems->GetTransform().SetLocalPosition(pickupItems->GetInitPos());
-				pickupItems->GetPhysicsObject()->SetInverseMass(1);
-				pickupItems->SetBoundingVolume((CollisionVolume*)appleV);
-				lockedObject->SetTag("");
-
+				if (lockedObject->GetTag() == "hold") {
+					pickupItems->GetTransform().SetParent(saveParent);
+					pickupItems->GetTransform().SetLocalPosition(pickupItems->GetInitPos());
+					pickupItems->GetPhysicsObject()->SetInverseMass(1);
+					pickupItems->SetBoundingVolume((CollisionVolume*)appleV);
+					lockedObject->SetTag("");
+				}
 			}
 		}
 	}
 	
-	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::W)) {//FRWD
-		for (GameObject* obj : physics->GetPickupList()) {
-			if (obj->GetName() == "water") {
-				//std::cout << "u on water now" << std::endl;
-				selectionObject->GetPhysicsObject()->AddForce(fwdAxis * 1);
-
-			}
-		}
-		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SHIFT)) {
-			if (stamina > 0) {
-				selectionObject->GetPhysicsObject()->AddForce(fwdAxis * 100);
-				stamina -= 0.5;
-			}
-			else {
-				selectionObject->GetPhysicsObject()->AddForce(fwdAxis * 3);
-			}
-		}
-		else {
-			selectionObject->GetPhysicsObject()->AddForce(fwdAxis * 5);
-		}
-	}
-	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::S)) {//BWRD
-		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SHIFT)) {
-			if (stamina > 0) {
-				selectionObject->GetPhysicsObject()->AddForce(-fwdAxis * 10);
-				stamina-=0.5;
-			}
-			else {
-				selectionObject->GetPhysicsObject()->AddForce(-fwdAxis * 3);
-			}
-		}
-		else {
-			selectionObject->GetPhysicsObject()->AddForce(-fwdAxis*5);
-		}
-	}
-	//fly
-	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::SPACE)) {
-		selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 2000, 0));
-	}
+	
+	
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::NUM0)) {
 		std::cout << lockedObject->GetTransform().GetLocalPosition();
 		std::cout << " tag:"<<lockedObject->GetTag();
 	}
-	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::V)) {
-		selectionObject->GetPhysicsObject()->AddForce(Vector3(0, -1000, 0));
-	}
+	
 	
 	trigger->GetTransform().SetParent(&lockedObject->GetTransform());
 	trigger->GetTransform().SetLocalPosition(Vector3(0, 2, 25));
 	
 	picker->GetTransform().SetParent(&lockedObject->GetTransform());
-	picker->GetTransform().SetLocalPosition(Vector3(0, 0, 0));;
-
-	//chaser->GetTransform().SetParent(&character->GetTransform());
-	//chaser->GetTransform().SetLocalPosition(Vector3(0, 0, 0));
-	//chaser2->GetTransform().SetParent(&keeper->GetTransform());
-	//chaser2->GetTransform().SetLocalPosition(Vector3(0, 0, 0));
+	picker->GetTransform().SetLocalPosition(Vector3(0, 0, 0));
 }
 bool d3 = false;
 
@@ -442,36 +490,36 @@ void  TutorialGame::LockedCameraMovement() {
 }
 void TutorialGame::DebugObjectMovement() {
 //If we've selected an object, we can manipulate it with some key presses
-	//if (inSelectionMode && selectionObject) {
-	//	//Twist the selected object!
-	//	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::D)) {
-	//		selectionObject->GetPhysicsObject()->AddForce(Vector3(-10, 0, 0));
-	//	}
+	if (inSelectionMode && selectionObject) {
+		//Twist the selected object!
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::D)) {
+			selectionObject->GetPhysicsObject()->AddForce(Vector3(-10, 0, 0));
+		}
 
-	//	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::A)) {
-	//		selectionObject->GetPhysicsObject()->AddForce(Vector3(10, 0, 0));
-	//	}
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::A)) {
+			selectionObject->GetPhysicsObject()->AddForce(Vector3(10, 0, 0));
+		}
 
-	//	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::S)) {
-	//		selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 0, -10));
-	//	}
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::S)) {
+			selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 0, -10));
+		}
 
-	//	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::W)) {
-	//		selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 0, 10));
-	//	}
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::W)) {
+			selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 0, 10));
+		}
 
-	//	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::NUM7)) {
-	//		selectionObject->GetPhysicsObject()->AddTorque(Vector3(0, 10, 0));
-	//	}
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::NUM7)) {
+			selectionObject->GetPhysicsObject()->AddTorque(Vector3(0, 10, 0));
+		}
 
-	//	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::NUM8)) {
-	//		selectionObject->GetPhysicsObject()->AddTorque(Vector3(0, -10, 0));
-	//	}
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::NUM8)) {
+			selectionObject->GetPhysicsObject()->AddTorque(Vector3(0, -10, 0));
+		}
 
-	//	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::NUM5)) {
-	//		selectionObject->GetPhysicsObject()->AddForce(Vector3(0, -10, 0));
-	//	}
-	//}
+		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::NUM5)) {
+			selectionObject->GetPhysicsObject()->AddForce(Vector3(0, -10, 0));
+		}
+	}
 }
 /*
 
@@ -481,21 +529,31 @@ manipulated later. Pressing Q will let you toggle between this behaviour and ins
 letting you move the camera around.
 
 */
-
+bool mouse = false;
 bool TutorialGame::SelectObject() {
 	if (inSelectionMode) {
 		Window::GetWindow()->ShowOSPointer(true);
 		Window::GetWindow()->LockMouseToWindow(false);
-		started = false;
+		//started = false;
 	}
 	else {
-		Window::GetWindow()->ShowOSPointer(false);
-		Window::GetWindow()->LockMouseToWindow(true);
+		if (!mouse) {
+			Window::GetWindow()->ShowOSPointer(false);
+			Window::GetWindow()->LockMouseToWindow(true);
+		}
+		else {
+			Window::GetWindow()->ShowOSPointer(true);
+			Window::GetWindow()->LockMouseToWindow(false);
+		}
 	}
-	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::NUM2)) {
-		//inSelectionMode = !inSelectionMode;
+	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::NUM6)) {
+		mouse = !mouse;
 	}
-	if (inSelectionMode) {
+	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::NUM6)) {
+		inSelectionMode = !inSelectionMode;
+	}
+	if (inStart) {
+		started = false;
 		int yawLockedMenu = 0;
 		if (Window::GetMouse()->ButtonPressed(NCL::MouseButtons::LEFT)) {
 			Ray ray = CollisionDetection::BuildRayFromMouse(*world->GetMainCamera());
@@ -507,6 +565,7 @@ bool TutorialGame::SelectObject() {
 				if (selection->GetName() == "cube") {
 					std::cout << "ready" << std::endl;
 					started = true;
+					inStart = false;
 					inSelectionMode = false;
 					
 				}
@@ -543,9 +602,6 @@ bool TutorialGame::SelectObject() {
 		world->GetMainCamera()->SetPitch(anglesMenu.x);
 		world->GetMainCamera()->SetYaw(anglesMenu.y);
 	}
-	else {
-
-	}
 	return false;
 }
 
@@ -561,22 +617,51 @@ void TutorialGame::MoveSelectedObject() {
 	//renderer -> DrawString(" Click Force :" + std::to_string(forceMagnitude),Vector2(10, 20)); // Draw debug text at 10 ,20
 	//forceMagnitude += Window::GetMouse() -> GetWheelMovement() * 100.0f;
 	//
-	//if (!selectionObject) {
-	//	return;// we haven ’t selected anything 
-	//}
-	//// Push the selected object !
-	//if (Window::GetMouse() -> ButtonPressed(NCL::MouseButtons::RIGHT)) {
-	//	Ray ray = CollisionDetection::BuildRayFromMouse(* world -> GetMainCamera());
-	//	RayCollision closestCollision;
-	//	if (world -> Raycast(ray, closestCollision, true)) {
-	//		/*if (closestCollision.node == selectionObject) {
-	//			selectionObject -> GetPhysicsObject() -> AddForce(ray.GetDirection() * forceMagnitude);
-	//		}*/
-	//		if (closestCollision.node == selectionObject) {
-	//			 selectionObject -> GetPhysicsObject() -> AddForceAtPosition(ray.GetDirection() * forceMagnitude, closestCollision.collidedAt);
-	//		}
-	//	}
-	//}
+	if (Window::GetMouse()->ButtonPressed(NCL::MouseButtons::MIDDLE)) {
+		Ray ray = CollisionDetection::BuildRayFromMouse(*world->GetMainCamera());
+
+		RayCollision closestCollision;
+		if (world->Raycast(ray, closestCollision, true)) {
+			GameObject* selection = (GameObject*)closestCollision.node;
+			std::cout << selection->GetName() << std::endl;
+			selectionObject = selection;
+			
+			
+			return;
+		}
+		else {
+			return;
+		}
+	}
+	if (!selectionObject) {
+		return;// we haven ’t selected anything 
+	}
+	else {
+		int x = selectionObject->GetTransform().GetLocalPosition().x;
+		int y = selectionObject->GetTransform().GetLocalPosition().y;
+		int z = selectionObject->GetTransform().GetLocalPosition().z;
+		int ox = selectionObject->GetTransform().GetLocalOrientation().x;
+		int oy = selectionObject->GetTransform().GetLocalOrientation().y;
+		int oz = selectionObject->GetTransform().GetLocalOrientation().z;
+		renderer->DrawString("Name: " + selectionObject->GetName(), Vector2(0, 520));
+		renderer->DrawString("Location: " + std::to_string(x) + "," + std::to_string(y) + "," + std::to_string(z) , Vector2(0, 500));
+		renderer->DrawString("State: " + selectionObject->GetTag() , Vector2(0, 460));
+	}
+	// Push the selected object !
+	
+	if (Window::GetMouse() -> ButtonPressed(NCL::MouseButtons::RIGHT)) {
+		//Ray ray = CollisionDetection::BuildRayFromMouse(* world -> GetMainCamera());
+		//RayCollision closestCollision;
+		//if (world -> Raycast(ray, closestCollision, true)) {
+		//	/*if (closestCollision.node == selectionObject) {
+		//		selectionObject -> GetPhysicsObject() -> AddForce(ray.GetDirection() * forceMagnitude);
+		//	}*/
+		//	if (closestCollision.node == selectionObject) {
+		//		 selectionObject -> GetPhysicsObject() -> AddForceAtPosition(ray.GetDirection() * 100, closestCollision.collidedAt);
+		//	}
+		//}
+		selectionObject = nullptr;
+	}
 }
 
 void TutorialGame::InitCamera() {
@@ -589,6 +674,8 @@ void TutorialGame::InitCamera() {
 }
 
 void TutorialGame::InitWorld() {
+	inStart = true;
+	mouse = false;
 	killCounter = 0;
 	applesPicked = 0;
 	itemsPicked = 0;
@@ -599,14 +686,16 @@ void TutorialGame::InitWorld() {
 	physics->Clear();
 
 	//InitMixedGridWorld(10, 10, 3.5f, 3.5f);
-	AddGooseToWorld(Vector3(-100, 4, -200));
+	AddGooseToWorld(Vector3(-112, 0, -238));
 	AddAppleToWorld(Vector3(35, 2, 0));
 	AddAppleToWorld(Vector3(-105, -13.9, -200));
 
+	//AddHellKeeperToWorld(Vector3(50, 2, 0));
 	AddParkKeeperToWorld(Vector3(40, 2, 0));
 	AddCharacterToWorld(Vector3(152.607, -16.0649, -44.5025));
 	AddCharacterToWorld(Vector3(152.607 + 10, -16.0649, -44.5025));
-	AddCharacterToWorld(Vector3(152.607 + 20, -16.0649, -44.5025));
+	AddCharacterToWorld(Vector3(291, -16.0649, 4));
+	AddCharacterToWorld(Vector3(201, -16.0649, -69));
 
 
 	AddIslandToWorld(Vector3(200, -19, 200));
@@ -614,10 +703,13 @@ void TutorialGame::InitWorld() {
 	AddMiniFloorToWorld(Vector3(0, -19, 0), Vector3(20, 0.1, 50), Vector4(0.25, 0.47, 0.30, 1));
 
 	AddTreeToWorld(Vector3(0, -18, 0));
+	AddTreeToWorld(Vector3(0, -17, 250));
+	AddTreeToWorld(Vector3(20, -15, 258));
+	//AddTreeToWorld(Vector3(0, -18, 0));
 
 	AddTrampolineToWorld(Vector3(50, -17, 50), Vector3(4, 0.5, 4), Vector4(0.55, 0.27, 0.07, 1), 20.0f);
 
-	AddMenuToWorld(Vector3(0, 50, 0), Vector3(22, 14, 3));
+	AddMenuToWorld(Vector3(0, 200, 0), Vector3(22, 14, 3));
 
 	BridgeConstraintTest();
 	BridgeConstraintDoor();
@@ -739,11 +831,19 @@ GameObject* TutorialGame::AddIslandToWorld(const Vector3& position) {
 	AddBaseFloorToWorld(Vector3(-112.015, -13.9, -238.057), Vector3(10, 1, 10), Vector4(0.55, 0.27, 0.07, 1));
 	
 	AddAppleToWorld(Vector3(0, 20, 0));
+	AddAppleToWorld(Vector3(137, 20, 77));
+	AddAppleToWorld(Vector3(137, 20, 177));
+	AddAppleToWorld(Vector3(137, 20, 26));
+	AddAppleToWorld(Vector3(240, 20, 175));
+	AddAppleToWorld(Vector3(240, 20, 26));
 
 	AddPickablesToWorld(Vector3(10, 0, 10), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
 	AddPickablesToWorld(Vector3(240, 0, -76), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
 	AddPickablesToWorld(Vector3(238, 0, -55), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
 	AddPickablesToWorld(Vector3(220, 25, -20), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
+	AddPickablesToWorld(Vector3(220, 25, 120), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
+	AddPickablesToWorld(Vector3(201, 25, 126), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
+	AddPickablesToWorld(Vector3(202, 25, 91), Vector3(1, 1, 1), Vector4(0, 1, 0, 1));
 	
 	return 0;
 }
@@ -1034,7 +1134,7 @@ GameObject* TutorialGame::AddGooseToWorld(const Vector3& position)
 	world->AddGameObject(goose);
 
 	lockedObject = goose;
-	selectionObject = goose;
+	//selectionObject = goose;
 	lockedObject->SetInitPos(position);
 	trigger = AddTriggerToWorld(position, Vector3(5, 3, 20),"trigger");
 	picker = AddTriggerToWorld(position, Vector3(3, 3, 3),"pickup");
@@ -1074,8 +1174,7 @@ void TutorialGame::Respawn() {
 //		}
 //	}
 //}
-GameObject* TutorialGame::AddParkKeeperToWorld(const Vector3& position)
-{
+GameObject* TutorialGame::AddParkKeeperToWorld(const Vector3& position){
 	float meshSize = 4.0f;
 	float inverseMass = 0.5f;
 
@@ -1098,11 +1197,36 @@ GameObject* TutorialGame::AddParkKeeperToWorld(const Vector3& position)
 
 
 	world->AddGameObject(keeper);
-	ch1 = keeper;
 
-	//chaser2 = AddTriggerToWorld(position, Vector3(40, 40, 40), "chaser");
+	characters.push_back(keeper);
 
 	return keeper;
+}
+GameObject* TutorialGame::AddHellKeeperToWorld(const Vector3& position){
+	float meshSize = 10.f;
+	float inverseMass = 0.5f;
+
+	GameObject* hellkeeper = new GameObject("hell");
+
+	AABBVolume* volume = new AABBVolume(Vector3(0.3, 0.9f, 0.3) * meshSize);
+	hellkeeper->SetBoundingVolume((CollisionVolume*)volume);
+
+	hellkeeper->GetTransform().SetWorldScale(Vector3(meshSize, meshSize, meshSize));
+	hellkeeper->GetTransform().SetWorldPosition(position);
+
+	hellkeeper->SetInitPos(hellkeeper->GetTransform().GetWorldPosition());
+
+	hellkeeper->SetRenderObject(new RenderObject(&hellkeeper->GetTransform(), keeperMesh, dogeTex, basicShader));
+	hellkeeper->SetPhysicsObject(new PhysicsObject(&hellkeeper->GetTransform(), hellkeeper->GetBoundingVolume(),0.2f));
+
+	hellkeeper->GetPhysicsObject()->SetInverseMass(inverseMass);
+	hellkeeper->GetPhysicsObject()->InitCubeInertia();
+
+	world->AddGameObject(hellkeeper);
+
+	characters.push_back(hellkeeper);
+
+	return hellkeeper;
 }
 
 GameObject* TutorialGame::AddCharacterToWorld(const Vector3& position) {

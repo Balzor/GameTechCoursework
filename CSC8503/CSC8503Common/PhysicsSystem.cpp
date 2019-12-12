@@ -112,6 +112,72 @@ void PhysicsSystem::Update(float dt) {
 	float time = testTimer.GetTimeDeltaSeconds();
 	//std::cout << "Physics time taken: " << time << std::endl;
 }
+//int constraintIterationCount = 10;
+//void PhysicsSystem::Update(float dt) {
+//	triggerObj.clear();
+//	pickupObj.clear();
+//	chaseObj.clear();
+//	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::I)) {
+//		constraintIterationCount--;
+//		std::cout << "Setting constraint iterations to " << constraintIterationCount << std::endl;
+//	}
+//	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::O)) {
+//		constraintIterationCount++;
+//		std::cout << "Setting constraint iterations to " << constraintIterationCount << std::endl;
+//	}
+//
+//	dTOffset += dt; //We accumulate time delta here - there might be remainders from previous frame!
+//
+//	float idealFrameRate = 60;							//this is the framerate we'd like to maintain kplzthx
+//	float idealIterations = idealFrameRate * 2;			//we want n per second;
+//
+//	int perFrameIts = (int)(idealIterations / idealFrameRate);
+//
+//	float iterationDt = 1.0f / idealIterations;				//So each iteration we'll get an advance of this time
+//	float currentFrameRate = 1.0f / dt;							//what's our current fps?
+//
+//	int realIterations = (int)(dTOffset / iterationDt);				//how many iterations of the desired dt can we actually fit in our timestep?
+//
+//	if (currentFrameRate < idealFrameRate * 0.5f) {
+//		iterationDt = dTOffset; //run one big update if the framerate tanks
+//	}
+//	else if (realIterations > perFrameIts + 1) { //+1 as we sometimes accumulate an extra frame to take up the leftover time
+//		//UH OH, we're accumulating too much time from somewhere, half the iteration count
+//		//Probably caused by not being able to quite maintain the fps
+//		iterationDt *= 2;
+//	}
+//
+//	if (useBroadPhase) {
+//		UpdateObjectAABBs();
+//	}
+//	int iteratorCount = 0;
+//	while (dTOffset >= iterationDt) {
+//		IntegrateAccel(iterationDt); //Update accelerations from external forces
+//		if (useBroadPhase) {
+//			//BroadPhase();
+//			//NarrowPhase();
+//		}
+//		else {
+//			BasicCollisionDetection();
+//		}
+//
+//		//This is our simple iterative solver - 
+//		//we just run things multiple times, slowly moving things forward
+//		//and then rechecking that the constraints have been met		
+//		float constraintDt = iterationDt / (float)constraintIterationCount;
+//		for (int i = 0; i < constraintIterationCount; ++i) {
+//			UpdateConstraints(constraintDt);
+//		}
+//		IntegrateVelocity(iterationDt); //update positions from new velocity changes
+//
+//		dTOffset -= iterationDt;
+//		iteratorCount++;
+//	}
+//
+//	ClearForces();	//Once we've finished with the forces, reset them to zero
+//
+//	UpdateCollisionList(); //Remove any old collisions
+//}
 
 /*
 Later on we're going to need to keep track of collisions

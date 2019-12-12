@@ -76,6 +76,7 @@ namespace NCL {
 			//IT'S HAPPENING
 			GameObject* AddGooseToWorld(const Vector3& position);
 			GameObject* AddParkKeeperToWorld(const Vector3& position);
+			GameObject* AddHellKeeperToWorld(const Vector3& position);
 			GameObject* AddCharacterToWorld(const Vector3& position);
 			GameObject* AddAppleToWorld(const Vector3& position);
 			GameObject* AddTreeToWorld(const Vector3& position);
@@ -95,6 +96,9 @@ namespace NCL {
 			bool useGravity;
 			bool inSelectionMode;
 
+			bool stunned = false;
+			int stunnedCounter = 0;
+
 			float		forceMagnitude;
 
 			GameObject* selectionObject = nullptr;
@@ -109,6 +113,7 @@ namespace NCL {
 
 			//Coursework Meshes
 			OGLMesh*	gooseMesh	= nullptr;
+			OGLMesh*	hellkeeperMesh	= nullptr;
 			OGLMesh*	keeperMesh	= nullptr;
 			OGLMesh*	appleMesh	= nullptr;
 			OGLMesh*	raptorMesh	= nullptr;
