@@ -24,12 +24,16 @@ namespace NCL {
 
 			virtual void UpdateServer();
 
+			bool GetClientConnected() {
+				return clientConnected;
+			}
+
 		protected:
 			int			port;
 			int			clientMax;
 			int			clientCount;
 			GameWorld*	gameWorld;
-
+			bool clientConnected;
 			//std::atomic<bool> threadAlive;
 
 			

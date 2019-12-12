@@ -47,6 +47,8 @@ void GameClient::UpdateClient() {
 			std::cout << "Client: Packet recieved..." << std::endl;
 			GamePacket* packet = (GamePacket*)event.packet->data;
 			ProcessPacket(packet);
+			isConnected = true;
+
 		}
 		enet_packet_destroy(event.packet);
 	}

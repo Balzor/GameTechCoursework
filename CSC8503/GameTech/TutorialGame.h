@@ -7,7 +7,6 @@
 
 namespace NCL {
 	namespace CSC8503 {
-
 		class TestPacketReceiver : public PacketReceiver {
 		public:
 			TestPacketReceiver(string name) {
@@ -16,15 +15,27 @@ namespace NCL {
 			void ReceivePacket(int type, GamePacket* payload, int source) {
 				if (type == String_Message) {
 					StringPacket* realPacket = (StringPacket*)payload;
-
-
 					string msg = realPacket->GetStringFromData();
 
 					std::cout << name << " received message : " << msg << std::endl;
+					if (msg == "cc") {
+						clientConnected = true;
+					}
+					if (msg == "oo") {
+						goose2p->GetRenderObject()->SetColour(Vector4(1,0,0,1));
+					}
 				}
+			}
+			bool GetClientConnected() {
+				return clientConnected;
+			}
+			Vector3 Get2pPosition() {
+				return goose2p->GetTransform().GetLocalPosition();
 			}
 		protected:
 			string name;
+			GameObject* goose2p;
+			bool clientConnected;
 		};
 
 		class TutorialGame		{
@@ -44,8 +55,6 @@ namespace NCL {
 			void CreateObjects();
 
 			void InitWorld();
-			void Respawn();
-
 			/*
 			These are some of the world/object creation functions I created when testing the functionality
 			in the module. Feel free to mess around with them to see different objects being created in different
@@ -70,10 +79,12 @@ namespace NCL {
 
 			GameObject* AddFloorToWorld(const Vector3& position, const Vector3& size);
 			GameObject* AddMiniFloorToWorld(const Vector3& position, const Vector3& size,const Vector4& colour);
+			GameObject* AddSlopeFloorToWorld(const Vector3& position, const Vector3& size,const Vector4& colour,float inverseMass,Vector3& angle);
 			GameObject* AddSphereToWorld(const Vector3& position, float radius, float inverseMass = 10.0f);
 			GameObject* AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass = 10.0f);
 			GameObject* AddMenuToWorld(const Vector3& position, Vector3 dimensions);
 			GameObject* AddTriggerToWorld(const Vector3& position, Vector3 dimensions,string name);
+			GameObject* AddTrigger2ToWorld(const Vector3& position, float dimension, string name);
 			GameObject* AddButtonToWorld(const Vector3& position, Vector3 dimensions, Vector3 colour, TextureBase* tex,string name);
 			GameObject* trigger;
 			GameObject* picker;
@@ -99,6 +110,10 @@ namespace NCL {
 			//NavigationGrid outPath;
 			//IT'S HAPPENING
 			GameObject* AddGooseToWorld(const Vector3& position);
+			GameObject* AddServerGooseToWorld(const Vector3& position);
+			//GameObject* AddClientGooseToWorld(const Vector3& position);
+
+			GameObject* goose2p;
 			GameObject* AddParkKeeperToWorld(const Vector3& position);
 			GameObject* AddHellKeeperToWorld(const Vector3& position);
 			GameObject* AddCharacterToWorld(const Vector3& position);
@@ -128,6 +143,9 @@ namespace NCL {
 			bool clientBool;
 			bool serverBool;
 			bool happened;
+			bool clientConnectedServer;
+			bool serverConnectedClient;
+			bool single;
 
 			TestPacketReceiver* serverReceiver;
 			TestPacketReceiver* clientReceiver;

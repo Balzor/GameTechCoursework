@@ -32,7 +32,9 @@ TutorialGame::TutorialGame()	{
 	inSelectionMode = true;
 	clientBool = false;
 	serverBool = false;
-
+	clientConnectedServer = false;
+	serverConnectedClient = false;
+	single = false;
 	NetworkBase::Initialise();
 
 	physics->UseGravity(useGravity);
@@ -50,14 +52,35 @@ void TutorialGame::Server() {
 }
 void TutorialGame::SendPacket(bool s) {
 	if (s) {
-		
+
+		renderer->DrawString("Server", Vector2(0, 600));
 		server->SendGlobalPacket(StringPacket("Server says hello!"));
+		server->SendGlobalPacket(StringPacket(
+			std::to_string(lockedObject->GetTransform().GetLocalPosition().x)+","+
+			std::to_string(lockedObject->GetTransform().GetLocalPosition().y) + "," +
+			std::to_string(lockedObject->GetTransform().GetLocalPosition().z)
+		));
+		
 		server->UpdateServer();
+		if (server->GetClientConnected() && !serverConnectedClient) {
+			//server->Get2pGoosePosition();
+			clientConnectedServer = true;
+			if (serverReceiver->GetClientConnected()) {
+				serverConnectedClient = true;
+			}
+		}
 	}
 	else {
 		renderer->DrawString("Client", Vector2(0, 600));
 		client->SendPacket(StringPacket("Client says hello!"));
+		
 		client->UpdateClient();
+		if (client->GetIsConnected() && !serverConnectedClient) {
+			serverConnectedClient = true;
+			client->SendPacket(StringPacket("cc"));
+			client->UpdateClient();
+			clientConnectedServer = true;
+		}
 	}
 }
 void TutorialGame::Client() {
@@ -131,87 +154,89 @@ void TutorialGame::UpdateGame(float dt) {
 		if (serverBool || clientBool) {
 			SendPacket(serverBool);
 		}
+		if ((serverConnectedClient && clientConnectedServer) || single) {
+			if (endTimer < 1) {
+				std::ifstream readScore("highscore.txt");
+				if (readScore.is_open()) {
+					while (std::getline(readScore, line)) {
+						std::stringstream s(line);
+						s >> check;
+					}
+					readScore.close();
+				}
+				if (check < (applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught)) {
+					std::ofstream writeScore("highscore.txt");
+					if (writeScore.is_open()) {
+						writeScore << std::to_string(applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught) << std::endl;
+						check = applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught;
+						writeScore.close();
+					}
+				}
+				renderer->DrawString("TIME UP", Vector2(180, 180));
+				renderer->DrawString("Final Score: " + std::to_string(applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught), Vector2(500, 180));
+				renderer->DrawString("HighScore: " + std::to_string(check), Vector2(500, 200));
+				renderer->DrawString("Press F1 to play again", Vector2(180, 160));
+				renderer->DrawString("Press ESC to exit game", Vector2(180, 140));
+
+
+
+				if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F1)) {
+					inStart = true;
+					endTimer = 10800;
+					//again = true;
+				}
+				dt = 0;
+
+			}
+			else {
+				endTimer -= 1;
+
+				if (stamina < 100) {
+					stamina += 0.05;
+				}
+				else {
+					stamina = 100;
+				}
+
+				renderer->DrawString("Time left: " + std::to_string(endTimer), Vector2(10, 160));
+				renderer->DrawString("Humans killed: " + std::to_string(killCounter), Vector2(10, 60));
+				renderer->DrawString("Apples Picked: " + std::to_string(applesPicked), Vector2(10, 80));
+				renderer->DrawString("Items Picked: " + std::to_string(itemsPicked), Vector2(10, 100));
+				renderer->DrawString("Score: " + std::to_string(applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught), Vector2(10, 120));
+				renderer->DrawString("Stamina: " + std::to_string(stamina), Vector2(10, 140));
+				renderer->DrawString("Times Caught: " + std::to_string(caught), Vector2(10, 180), Vector4(1, 0, 0, 1));
+				if (useGravity) {
+					//Debug::Print("(G)ravity on", Vector2(10, 40));
+				}
+				else {
+					//Debug::Print("(G)ravity off", Vector2(10, 40));
+				}
+				if (beHard) {
+					Debug::Print("Press H for easy mode", Vector2(20, 20));
+				}
+				else {
+					Debug::Print("Press H for hard mode", Vector2(20, 20));
+				}
+			}
+			if (!inSelectionMode) {
+				world->GetMainCamera()->UpdateCamera(dt);
+				LockedCameraMovement();
+			}
+			else {
+				world->GetMainCamera()->UpdateCamera(dt);
+			}
+
+			for (GameObject* i : characters) {
+				i->Pathfind(i, i->GetTransform().GetLocalPosition(), lockedObject, lockedObject->GetTransform().GetLocalPosition(), beHard);
+				if (i->GetTransform().GetLocalPosition().y <= -30) {
+					killCounter++;
+					i->GetTransform().SetLocalPosition(i->GetInitPos());
+					//AddHellKeeperToWorld(Vector3(50, 2, 0));
+				}
+
+			}
+		}
 		
-		if (endTimer < 1) {
-			std::ifstream readScore("highscore.txt");
-			if (readScore.is_open()) {
-				while (std::getline(readScore, line)) {
-					std::stringstream s(line);
-					s >> check;
-				}
-				readScore.close();
-			}
-			if (check < (applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught)) {
-				std::ofstream writeScore("highscore.txt");
-				if (writeScore.is_open()) {
-					writeScore << std::to_string(applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught) << std::endl;
-					check = applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught;
-					writeScore.close();
-				}
-			}
-			renderer->DrawString("TIME UP", Vector2(180, 180));
-			renderer->DrawString("Final Score: " + std::to_string(applesPicked +(itemsPicked*2) + (killCounter * 3) - caught), Vector2(500, 180));
-			renderer->DrawString("HighScore: " + std::to_string(check), Vector2(500, 200));
-			renderer->DrawString("Press F1 to play again", Vector2(180, 160));
-			renderer->DrawString("Press ESC to exit game", Vector2(180, 140));
-			
-			
-			
-			if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F1)) {
-				inStart = true;
-				endTimer = 10800;
-				//again = true;
-			}
-			dt = 0;
-
-		}
-		else {
-			endTimer -= 1;
-
-			if (stamina < 100) {
-				stamina += 0.05;
-			}
-			else {
-				stamina = 100;
-			}
-
-			renderer->DrawString("Time left: " + std::to_string(endTimer), Vector2(10, 160));
-			renderer->DrawString("Humans killed: " + std::to_string(killCounter), Vector2(10, 60));
-			renderer->DrawString("Apples Picked: " + std::to_string(applesPicked), Vector2(10, 80));
-			renderer->DrawString("Items Picked: " + std::to_string(itemsPicked), Vector2(10, 100));
-			renderer->DrawString("Score: " + std::to_string(applesPicked+(itemsPicked*2) + (killCounter * 3) - caught), Vector2(10, 120));
-			renderer->DrawString("Stamina: " + std::to_string(stamina), Vector2(10, 140));
-			renderer->DrawString("Times Caught: " + std::to_string(caught), Vector2(10, 180), Vector4(1, 0, 0, 1));
-			if (useGravity) {
-				//Debug::Print("(G)ravity on", Vector2(10, 40));
-			}
-			else {
-				//Debug::Print("(G)ravity off", Vector2(10, 40));
-			}
-			if (beHard) {
-				Debug::Print("Press H for easy mode", Vector2(20, 20));
-			}
-			else {
-				Debug::Print("Press H for hard mode", Vector2(20, 20));
-			}
-		}
-		if (!inSelectionMode) {
-			world->GetMainCamera()->UpdateCamera(dt);
-			LockedCameraMovement();
-		}
-		else {
-			world->GetMainCamera()->UpdateCamera(dt);
-		}
-
-		for (GameObject* i : characters) {
-			i->Pathfind(i, i->GetTransform().GetLocalPosition(), lockedObject, lockedObject->GetTransform().GetLocalPosition(), beHard);
-			if (i->GetTransform().GetLocalPosition().y <= -30) {
-				killCounter++;
-				i->GetTransform().SetLocalPosition(i->GetInitPos());
-				//AddHellKeeperToWorld(Vector3(50, 2, 0));
-			}
-			
-		}
 
 		UpdateKeys();
 		CreateObjects();
@@ -605,6 +630,7 @@ bool TutorialGame::SelectObject() {
 				std::cout << selection->GetName() << std::endl;
 				if (selection->GetName() == "start") {
 					//state->SetTag("single");
+					single = true;
 					std::cout << "ready" << std::endl;
 					started = true;
 					inStart = false;
@@ -614,7 +640,7 @@ bool TutorialGame::SelectObject() {
 				if (selection->GetName() == "client") {
 					clientBool = true;
 					Client();		
-					
+					AddServerGooseToWorld(Vector3(-120, 0, -238));
 					std::cout << "ready" << std::endl;
 					started = true;
 					inStart = false;
@@ -624,7 +650,7 @@ bool TutorialGame::SelectObject() {
 				if (selection->GetName() == "server") {
 					serverBool = true;
 					Server();
-					renderer->DrawString("Server", Vector2(0, 600));
+					AddServerGooseToWorld(Vector3(-120, 0, -238));
 					std::cout << "ready" << std::endl;
 					started = true;
 					inStart = false;
@@ -890,6 +916,8 @@ GameObject* TutorialGame::AddIslandToWorld(const Vector3& position) {
 	AddTreeToWorld(position + Vector3(-340, 4, -440));
 	//home base
 	AddBaseFloorToWorld(Vector3(-112.015, -13.9, -238.057), Vector3(10, 1, 10), Vector4(0.55, 0.27, 0.07, 1));
+	AddSlopeFloorToWorld(Vector3(-112.015, 10, -238.057), Vector3(2, 7, 2), Vector4(0.55, 0.27, 0.07, 1),0,Vector3(45,0,0));
+	AddSlopeFloorToWorld(Vector3(238.447, 0, 14.7122), Vector3(2, 20, 1), Vector4(0.55, 0.27, 0.07, 1),0,Vector3(-60,0,0));
 	
 	AddAppleToWorld(Vector3(0, 20, 0));
 	AddAppleToWorld(Vector3(137, 20, 77));
@@ -978,6 +1006,31 @@ GameObject* TutorialGame::AddMiniFloorToWorld(const Vector3& position, const Vec
 	minifloor->SetPhysicsObject(new PhysicsObject(&minifloor->GetTransform(), minifloor->GetBoundingVolume(),.0f));
 	minifloor->GetRenderObject()->SetColour(colour);
 	minifloor->GetPhysicsObject()->SetInverseMass(0);
+	minifloor->GetPhysicsObject()->InitCubeInertia();
+
+	world->AddGameObject(minifloor);
+
+	return minifloor;
+}
+GameObject* TutorialGame::AddSlopeFloorToWorld(const Vector3& position, const Vector3& size, const Vector4& colour,
+												float inversemass, Vector3& angle) {
+	GameObject* minifloor = new GameObject("cube");
+
+	Vector3 floorSize = size;
+	OBBVolume* volume = new OBBVolume(floorSize);
+	minifloor->SetBoundingVolume((CollisionVolume*)volume);
+	minifloor->GetTransform().SetWorldScale(floorSize);
+	minifloor->GetTransform().SetWorldPosition(position);
+	float a = angle.x;
+	float b = angle.y;
+	float c = angle.z;
+
+	minifloor->GetTransform().SetLocalOrientation(Quaternion::EulerAnglesToQuaternion(a,b,c));
+
+	minifloor->SetRenderObject(new RenderObject(&minifloor->GetTransform(), cubeMesh, basicTex, basicShader));
+	minifloor->SetPhysicsObject(new PhysicsObject(&minifloor->GetTransform(), minifloor->GetBoundingVolume(),.0f));
+	minifloor->GetRenderObject()->SetColour(colour);
+	minifloor->GetPhysicsObject()->SetInverseMass(inversemass);
 	minifloor->GetPhysicsObject()->InitCubeInertia();
 
 	world->AddGameObject(minifloor);
@@ -1170,9 +1223,25 @@ GameObject* TutorialGame::AddTriggerToWorld(const Vector3& position, Vector3 dim
 
 	return cube;
 }
+GameObject* TutorialGame::AddTrigger2ToWorld(const Vector3& position, float dimension,string name) {
+	GameObject* cube = new GameObject(name);
 
-GameObject* TutorialGame::AddGooseToWorld(const Vector3& position)
-{	
+	SphereVolume* volume = new SphereVolume(dimension);
+
+	cube->SetBoundingVolume((CollisionVolume*)volume);
+
+	cube->GetTransform().SetWorldPosition(position);
+	cube->GetTransform().SetWorldScale(Vector3(dimension, dimension, dimension));
+
+	//cube->SetRenderObject(new RenderObject(&cube->GetTransform(), cubeMesh, basicTex, basicShader));
+	cube->SetPhysicsObject(new PhysicsObject(&cube->GetTransform(), cube->GetBoundingVolume(),0.0f));
+
+	world->AddGameObject(cube);
+
+	return cube;
+}
+
+GameObject* TutorialGame::AddGooseToWorld(const Vector3& position){	
 	if (lockedObject) {
 		delete lockedObject;
 	}
@@ -1200,13 +1269,33 @@ GameObject* TutorialGame::AddGooseToWorld(const Vector3& position)
 	//selectionObject = goose;
 	lockedObject->SetInitPos(position);
 	trigger = AddTriggerToWorld(position, Vector3(5, 3, 20),"trigger");
-	picker = AddTriggerToWorld(position, Vector3(3, 2, 3),"pickup");
+	picker = AddTrigger2ToWorld(position, 2,"pickup");
 
 	return goose;
 }
-void TutorialGame::Respawn() {
-	
-	AddGooseToWorld(Vector3(30, 2, 0));
+GameObject* TutorialGame::AddServerGooseToWorld(const Vector3& position) {
+	float size = 1.0f;
+	float inverseMass = 1.0f;
+
+	GameObject* goose = new GameObject("goose");
+
+	SphereVolume* volume = new SphereVolume(size);
+	goose->SetBoundingVolume((CollisionVolume*)volume);
+
+	goose->GetTransform().SetWorldScale(Vector3(size, size, size));
+	goose->GetTransform().SetWorldPosition(position);
+
+	goose->SetRenderObject(new RenderObject(&goose->GetTransform(), gooseMesh, nullptr, basicShader));
+	goose->SetPhysicsObject(new PhysicsObject(&goose->GetTransform(), goose->GetBoundingVolume(), 0.2f));
+
+	goose->GetPhysicsObject()->SetInverseMass(inverseMass);
+	goose->GetPhysicsObject()->InitSphereInertia();
+
+	world->AddGameObject(goose);
+
+	goose2p = goose;
+
+	return goose;
 }
 
 GameObject* TutorialGame::AddParkKeeperToWorld(const Vector3& position){
@@ -1375,14 +1464,16 @@ void TutorialGame::BridgeConstraintTest() {
 
 	Vector3 startPos = Vector3(-79, -17, -145);
 
-	GameObject* start = AddCubeToWorld(startPos + Vector3(0, 0, 0), cubeSize, 0);
+	GameObject* start = AddSlopeFloorToWorld(startPos + Vector3(0, 0, 0), cubeSize, Vector4(0.55, 0.27, 0.07, 1), 0,Vector3(0,0,0));
 
-	GameObject* end = AddCubeToWorld(startPos + Vector3((numLinks + 2) * cubeDistance, 0, 40), cubeSize, 0);
-
+	GameObject* end = AddSlopeFloorToWorld(startPos + Vector3((numLinks + 2) * cubeDistance, 0, 40), cubeSize, Vector4(0.55, 0.27, 0.07, 1), 0, Vector3(0, 0, 0));
+	Vector3 endPos = Vector3(startPos + Vector3((numLinks + 2) * cubeDistance,3,0));
 	GameObject* previous = start;
-
+	//renderer->DrawLine(startPos, endPos, Vector4(1, 0, 0, 1));
 	for (int i = 0; i < numLinks; ++i) {
-		GameObject* block = AddCubeToWorld(startPos + Vector3((i + 1) * cubeDistance, 0, 0), cubeSize, invCubeMass);
+		
+		GameObject* block = AddSlopeFloorToWorld(startPos + Vector3((i + 1) * cubeDistance, 0, 0),cubeSize,Vector4(0.55, 0.27, 0.07, 1),1, Vector3(0, 0, 0));
+
 
 		PositionConstraint* constraint = new PositionConstraint(previous, block, maxDistance);
 
@@ -1417,52 +1508,14 @@ void TutorialGame::BridgeConstraintDoor() {
 
 	for (int i = 0; i < numLinks; ++i) {
 		//GameObject* block = AddCubeToWorld(startPos + Vector3( 0, 0, 0), cubeSize2, invCubeMass);
-		GameObject* block = AddCubeToWorld(startPos + Vector3( 0, 0, 0), cubeSize2, invCubeMass);
+		GameObject* block = AddCubeToWorld(startPos + Vector3(0, 0, 0), cubeSize2, invCubeMass);
+		//GameObject* block = AddSlopeFloorToWorld(startPos + Vector3( 0, 0, 0), cubeSize2,Vector4(0.55, 0.27, 0.07, 1), invCubeMass,Vector3(0,0,0));
 
 		PositionConstraint* constraint = new PositionConstraint(previous, block, 5);
 
 		world->AddConstraint(constraint);
 		previous = block;
 	}
-
-	
-#if 0
-
-	if (!start)
-		start = AddCubeToWorld(startPos + Vector3(0, 0, 0), cubeSize, 0);
-
-	if (!end)
-		end = AddCubeToWorld(startPos + Vector3(20, 0, 0), cubeSize, 0);
-
-	//GameObject* previous = start;
-	//std::vector< PositionConstraint*> stack;
-	//stack.reserve(numLinks);
-
-	//for (int i = 0; i < numLinks; ++i) {
-	if (!block)
-		block = AddCubeToWorld(startPos + Vector3(1, 0, 0), cubeSize2, invCubeMass);
-
-
-
-	//stack.emplace_back(constraint);
-	//previous = block;
-//}
-
-	if (isStart) {
-		PositionConstraint* constraint2 = new PositionConstraint(block, end, maxDistance);
-		world->AddConstraint(constraint2);
-	}
-
-	if ((!isStart) || (slidingDoorConstraint)) {
-		world->RemoveConstraint(slidingDoorConstraint);
-		delete slidingDoorConstraint;
-		slidingDoorConstraint = nullptr;
-	}
-	slidingDoorConstraint = new PositionConstraint(start, block, maxDistance);
-	slidingDoorConstraint->debug = true;
-	world->AddConstraint(slidingDoorConstraint);
-#endif
-
 }
 
 void TutorialGame::SimpleGJKTest() {

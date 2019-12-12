@@ -17,9 +17,12 @@ namespace NCL {
 			void SendPacket(GamePacket&  payload);
 
 			void UpdateClient();
+			bool GetIsConnected() {
+				return isConnected;
+			}
 		protected:	
 			//void ThreadedUpdate();
-
+			bool isConnected;
 			ENetPeer*	netPeer;
 			//std::atomic<bool>	threadAlive;
 			//std::thread			updateThread;

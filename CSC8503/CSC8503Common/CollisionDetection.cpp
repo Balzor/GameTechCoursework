@@ -86,7 +86,7 @@ bool CollisionDetection::RayOBBIntersection(const Ray&r, const Transform& worldT
 	//Matrix3 transform = orientation.ToMatrix3();
 	//Matrix3 invTransform = orientation.Conjugate().ToMatrix3();
 	
-	Vector3 localRayPos = r.GetPosition() - position;
+	//Vector3 localRayPos = r.GetPosition() - position;
 	
 	//Ray tempRay(invTransform * localRayPos, invTransform * r.GetDirection());
 	
@@ -149,10 +149,18 @@ bool CollisionDetection::ObjectIntersection(GameObject* a, GameObject* b, Collis
 	if (volA -> type == VolumeType::AABB && volB -> type == VolumeType::Sphere) {
 		return AABBSphereIntersection((AABBVolume&)* volA, transformA,(SphereVolume&)* volB, transformB, collisionInfo);
 	}
+	if (volA -> type == VolumeType::OBB && volB -> type == VolumeType::Sphere) {
+		return OBBSphereIntersection((OBBVolume&)* volA, transformA,(SphereVolume&)* volB, transformB, collisionInfo);
+	}
 	if (volA -> type == VolumeType::Sphere && volB -> type == VolumeType::AABB) {
 		collisionInfo.a = b;
 		collisionInfo.b = a;
 		return AABBSphereIntersection((AABBVolume&)* volB, transformB,(SphereVolume&)* volA, transformA, collisionInfo);
+	}
+	if (volA -> type == VolumeType::Sphere && volB -> type == VolumeType::OBB) {
+		collisionInfo.a = b;
+		collisionInfo.b = a;
+		return OBBSphereIntersection((OBBVolume&)* volB, transformB,(SphereVolume&)* volA, transformA, collisionInfo);
 	}
 	return false;
 }
@@ -262,7 +270,36 @@ bool CollisionDetection::OBBIntersection(
 	const OBBVolume& volumeB, const Transform& worldTransformB, CollisionInfo& collisionInfo) {
 	return false;
 }
+bool CollisionDetection::OBBSphereIntersection(const OBBVolume& volumeA, const Transform& worldTransformA,
+	const SphereVolume& volumeB, const Transform& worldTransformB, CollisionInfo& collisionInfo) {
+	Quaternion boxRotation = worldTransformA.GetWorldOrientation();
 
+	Vector3 boxSize = volumeA.GetHalfDimensions();
+
+	Vector3 delta = worldTransformB.GetWorldPosition() - worldTransformA.GetWorldPosition();
+
+	delta = boxRotation.Conjugate() * delta;
+
+	Vector3 closestPointToBox = Maths::Clamp(delta, -boxSize, boxSize);
+
+	Vector3 locPoint = delta - closestPointToBox;
+	float distance = locPoint.Length();
+
+	if (distance < volumeB.GetRadius()) {
+		Vector3 collisionNormal = locPoint.Normalised();
+		float penetration = (volumeB.GetRadius() - distance);
+		Vector3 localA = Vector3();
+		Vector3 localB = -collisionNormal * volumeB.GetRadius();
+
+		collisionNormal = boxRotation * collisionNormal;
+		localA = boxRotation * localA;
+		localB = boxRotation * localB;
+
+		collisionInfo.AddContactPoint(localA, localB, collisionNormal, penetration);
+		return true;
+	}
+	return false;
+}
 //It's helper functions for generating rays from here on out:
 
 Matrix4 GenerateInverseView(const Camera &c) {

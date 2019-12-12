@@ -75,6 +75,7 @@ void GameServer::UpdateServer() {
 			std::cout << "Server: New client connected" << std::endl;
 			NewPlayerPacket player(peer);
 			SendGlobalPacket(player);
+			clientConnected = true;
 		}
 		else if (type == ENetEventType::ENET_EVENT_TYPE_DISCONNECT) {
 			std::cout << "Server: A client has disconnected" << std::endl;
