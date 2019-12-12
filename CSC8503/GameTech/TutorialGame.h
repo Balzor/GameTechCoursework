@@ -1,10 +1,32 @@
 #pragma once
 #include "GameTechRenderer.h"
 #include "../CSC8503Common/PhysicsSystem.h"
+#include "../CSC8503Common/GameServer.h"
+#include "../CSC8503Common/GameClient.h"
 
 
 namespace NCL {
 	namespace CSC8503 {
+
+		class TestPacketReceiver : public PacketReceiver {
+		public:
+			TestPacketReceiver(string name) {
+				this->name = name;
+			}
+			void ReceivePacket(int type, GamePacket* payload, int source) {
+				if (type == String_Message) {
+					StringPacket* realPacket = (StringPacket*)payload;
+
+
+					string msg = realPacket->GetStringFromData();
+
+					std::cout << name << " received message : " << msg << std::endl;
+				}
+			}
+		protected:
+			string name;
+		};
+
 		class TutorialGame		{
 		public:
 			TutorialGame();
@@ -20,8 +42,6 @@ namespace NCL {
 			void InitCamera();
 			void UpdateKeys();
 			void CreateObjects();
-
-			void Chase(GameObject* chaser);
 
 			void InitWorld();
 			void Respawn();
@@ -43,7 +63,10 @@ namespace NCL {
 			void DebugObjectMovement();
 			void LockedObjectMovement();
 			void LockedCameraMovement();
+			void Client();
+			void Server();
 
+			void SendPacket(bool server);
 
 			GameObject* AddFloorToWorld(const Vector3& position, const Vector3& size);
 			GameObject* AddMiniFloorToWorld(const Vector3& position, const Vector3& size,const Vector4& colour);
@@ -51,7 +74,7 @@ namespace NCL {
 			GameObject* AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass = 10.0f);
 			GameObject* AddMenuToWorld(const Vector3& position, Vector3 dimensions);
 			GameObject* AddTriggerToWorld(const Vector3& position, Vector3 dimensions,string name);
-			GameObject* AddButtonToWorld(const Vector3& position, Vector3 dimensions, Vector3 colour, TextureBase* tex);
+			GameObject* AddButtonToWorld(const Vector3& position, Vector3 dimensions, Vector3 colour, TextureBase* tex,string name);
 			GameObject* trigger;
 			GameObject* picker;
 			GameObject* chaser;
@@ -60,6 +83,7 @@ namespace NCL {
 
 			GameObject* menu = new GameObject("menu");
 
+			GameObject* state;
 
 			/*GameObject* start, * block, *end;
 			Constraint* slidingDoorConstraint = nullptr;*/
@@ -100,6 +124,16 @@ namespace NCL {
 			int stunnedCounter = 0;
 
 			float		forceMagnitude;
+
+			bool clientBool;
+			bool serverBool;
+			bool happened;
+
+			TestPacketReceiver* serverReceiver;
+			TestPacketReceiver* clientReceiver;
+
+			GameClient* client;
+			GameServer* server;
 
 			GameObject* selectionObject = nullptr;
 

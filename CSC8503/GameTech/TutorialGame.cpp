@@ -13,12 +13,14 @@
 #include <iostream>
 #include <string>
 #include <sstream> 
-
+#include "NetworkedGame.h"
 #include "../CSC8503Common/PositionConstraint.h"
 #include "../CSC8503Common/NavigationGrid.h"
 
+
 using namespace NCL;
 using namespace CSC8503;
+
 TutorialGame::TutorialGame()	{
 	world = new GameWorld();
 	renderer = new GameTechRenderer(*world);
@@ -28,14 +30,44 @@ TutorialGame::TutorialGame()	{
 	useGravity = true;
 	beHard = false;
 	inSelectionMode = true;
+	clientBool = false;
+	serverBool = false;
 
-	
+	NetworkBase::Initialise();
+
 	physics->UseGravity(useGravity);
 	Debug::SetRenderer(renderer);
 
 	InitialiseAssets();
 }
 bool inStart = true;
+
+void TutorialGame::Server() {
+	serverReceiver = new TestPacketReceiver("Server");
+	int port = NetworkBase::GetDefaultPort();
+	server = new GameServer(port, 1);
+	server->RegisterPacketHandler(String_Message, serverReceiver);
+}
+void TutorialGame::SendPacket(bool s) {
+	if (s) {
+		
+		server->SendGlobalPacket(StringPacket("Server says hello!"));
+		server->UpdateServer();
+	}
+	else {
+		renderer->DrawString("Client", Vector2(0, 600));
+		client->SendPacket(StringPacket("Client says hello!"));
+		client->UpdateClient();
+	}
+}
+void TutorialGame::Client() {
+	clientReceiver = new TestPacketReceiver("Client");
+	int port = NetworkBase::GetDefaultPort();
+	client = new GameClient();
+	client->RegisterPacketHandler(String_Message, clientReceiver);
+	bool canConnect = client->Connect(127, 0, 0, 1, port);
+}
+
 /*
 
 Each of the little demo scenarios used in the game uses the same 2 meshes, 
@@ -83,6 +115,11 @@ TutorialGame::~TutorialGame()	{
 	delete physics;
 	delete renderer;
 	delete world;
+	NetworkBase::Destroy();
+	delete client;
+	delete server;
+	delete clientReceiver;
+	delete serverReceiver;
 }
 bool again=false;
 bool started = false;
@@ -91,6 +128,10 @@ int check;
 void TutorialGame::UpdateGame(float dt) {
 	
 	if (started) {
+		if (serverBool || clientBool) {
+			SendPacket(serverBool);
+		}
+		
 		if (endTimer < 1) {
 			std::ifstream readScore("highscore.txt");
 			if (readScore.is_open()) {
@@ -562,12 +603,32 @@ bool TutorialGame::SelectObject() {
 			if (world->Raycast(ray, closestCollision, true)) {
 				GameObject* selection = (GameObject*)closestCollision.node;
 				std::cout << selection->GetName() << std::endl;
-				if (selection->GetName() == "cube") {
+				if (selection->GetName() == "start") {
+					//state->SetTag("single");
 					std::cout << "ready" << std::endl;
 					started = true;
 					inStart = false;
 					inSelectionMode = false;
 					
+				}
+				if (selection->GetName() == "client") {
+					clientBool = true;
+					Client();		
+					
+					std::cout << "ready" << std::endl;
+					started = true;
+					inStart = false;
+					inSelectionMode = false;
+					
+				}
+				if (selection->GetName() == "server") {
+					serverBool = true;
+					Server();
+					renderer->DrawString("Server", Vector2(0, 600));
+					std::cout << "ready" << std::endl;
+					started = true;
+					inStart = false;
+					inSelectionMode = false;
 				}
 				return true;
 			}
@@ -1049,8 +1110,8 @@ GameObject* TutorialGame::AddPickablesToWorld(const Vector3& position, Vector3 d
 
 	return pickable;
 }
-GameObject* TutorialGame::AddButtonToWorld(const Vector3& position, Vector3 dimensions,Vector3 colour,TextureBase* tex) {
-	GameObject* cube = new GameObject("cube");
+GameObject* TutorialGame::AddButtonToWorld(const Vector3& position, Vector3 dimensions,Vector3 colour,TextureBase* tex,string name) {
+	GameObject* cube = new GameObject(name);
 
 	AABBVolume* volume = new AABBVolume(dimensions);
 
@@ -1084,7 +1145,9 @@ GameObject* TutorialGame::AddMenuToWorld(const Vector3& position, Vector3 dimens
 	menu->GetPhysicsObject()->InitCubeInertia();
 
 	//AddCubeToWorld(position+Vector3(13,4,-2), Vector3(7, 1, 1), 0);
-	AddButtonToWorld(position+Vector3(13,4,-2), Vector3(7, 1, 1),Vector4(0,0,0,1),nullptr);
+	AddButtonToWorld(position+Vector3(13,4,-2), Vector3(7, 1, 1),Vector4(0,0,0,1),nullptr,"start");
+	AddButtonToWorld(position+Vector3(13,0,-2), Vector3(7, 1, 1),Vector4(0,0,0,1),nullptr,"client");
+	AddButtonToWorld(position+Vector3(13,-4,-2), Vector3(7, 1, 1),Vector4(0,0,0,1),nullptr,"server");
 
 	world->AddGameObject(menu);
 
@@ -1137,7 +1200,7 @@ GameObject* TutorialGame::AddGooseToWorld(const Vector3& position)
 	//selectionObject = goose;
 	lockedObject->SetInitPos(position);
 	trigger = AddTriggerToWorld(position, Vector3(5, 3, 20),"trigger");
-	picker = AddTriggerToWorld(position, Vector3(3, 3, 3),"pickup");
+	picker = AddTriggerToWorld(position, Vector3(3, 2, 3),"pickup");
 
 	return goose;
 }
@@ -1145,35 +1208,7 @@ void TutorialGame::Respawn() {
 	
 	AddGooseToWorld(Vector3(30, 2, 0));
 }
-//void TutorialGame::Chase(GameObject* chaser) {
-//	//write here
-//	for (GameObject* obj : physics->GetChaseList()) {
-//		if (obj->GetName() == "goose") {
-//			if (obj->GetTag() == "hold") {
-//				//std::cout << "gonna chase a goose" << std::endl;
-//				//character->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition());
-//				int whereX = chaser->GetTransform().GetLocalPosition().x - lockedObject->GetTransform().GetLocalPosition().x;
-//
-//				int whereY = chaser->GetTransform().GetLocalPosition().y;
-//				int whereZ = chaser->GetTransform().GetLocalPosition().z - lockedObject->GetTransform().GetLocalPosition().z;
-//
-//				//chaser->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition() + Vector3(whereX, 0, whereZ));
-//
-//				if (beHard) {
-//					chaser->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition());
-//				}
-//				else {
-//					chaser->GetTransform().SetLocalPosition(lockedObject->GetTransform().GetLocalPosition() + Vector3(whereX, 0, whereZ));
-//				}
-//
-//				
-//			}
-//			else {
-//				//std::cout << "not gonna chase a goose" << std::endl;
-//			}
-//		}
-//	}
-//}
+
 GameObject* TutorialGame::AddParkKeeperToWorld(const Vector3& position){
 	float meshSize = 4.0f;
 	float inverseMass = 0.5f;
@@ -1444,4 +1479,3 @@ void TutorialGame::SimpleGJKTest() {
 	newFloor->SetBoundingVolume((CollisionVolume*)new OBBVolume(floorDimensions));
 
 }
-

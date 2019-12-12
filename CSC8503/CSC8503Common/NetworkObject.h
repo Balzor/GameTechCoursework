@@ -5,7 +5,7 @@
 namespace NCL {
 	namespace CSC8503 {
 		struct FullPacket : public GamePacket {
-			int		objectID = -1;
+			int		objectID;
 			NetworkState fullState;
 
 			FullPacket() {
@@ -15,8 +15,8 @@ namespace NCL {
 		};
 
 		struct DeltaPacket : public GamePacket {
-			int		fullID		= -1;
-			int		objectID	= -1;
+			int		fullID;
+			int		objectID;
 			char	pos[3];
 			char	orientation[4];
 
