@@ -5,7 +5,6 @@
 #include "../../Plugins/OpenGLRendering/OGLTexture.h"
 #include "../../Common/TextureLoader.h"
 #include <algorithm>
-//#include "Camera.h"
 #include <thread>
 #include <chrono>
 
@@ -25,11 +24,14 @@ TutorialGame::TutorialGame()	{
 	world = new GameWorld();
 	renderer = new GameTechRenderer(*world);
 	physics = new PhysicsSystem(*world);
-
+	win = false;
+	lose = false;
 	forceMagnitude = 10.0f;
 	useGravity = true;
 	beHard = false;
 	inSelectionMode = true;
+	Window::GetWindow()->ShowOSPointer(true);
+	Window::GetWindow()->LockMouseToWindow(false);
 	clientBool = false;
 	serverBool = false;
 	clientConnectedServer = false;
@@ -52,32 +54,91 @@ void TutorialGame::Server() {
 }
 void TutorialGame::SendPacket(bool s) {
 	if (s) {
-
-		renderer->DrawString("Server", Vector2(0, 600));
+		renderer->DrawString("Server", Vector2(0, 620));
 		server->SendGlobalPacket(StringPacket("Server says hello!"));
-		server->SendGlobalPacket(StringPacket(
-			std::to_string(lockedObject->GetTransform().GetLocalPosition().x)+","+
-			std::to_string(lockedObject->GetTransform().GetLocalPosition().y) + "," +
-			std::to_string(lockedObject->GetTransform().GetLocalPosition().z)
-		));
-		
+		//position
+		server->SendGlobalPacket(StringPacket("loc,"+std::to_string(lockedObject->GetTransform().GetLocalPosition().x)+","+std::to_string(lockedObject->GetTransform().GetLocalPosition().y)+"," +std::to_string(lockedObject->GetTransform().GetLocalPosition().z)+","));
+		Vector3 second = serverReceiver->Get2pPosition();
+		goose2p->GetTransform().SetLocalPosition(second);
+		//score
+		server->SendGlobalPacket(StringPacket("score," + std::to_string(applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught)+","));
+		int score = serverReceiver->GetScore();
+		scoreP2 = serverReceiver->GetScore();
+		renderer->DrawString("Oponent Score: " + std::to_string(score),Vector2(0,600));
+		//state
+		server->SendGlobalPacket(StringPacket("state," + lockedObject->GetTag()+","));
+		string status = serverReceiver->GetState();
+		goose2p->SetTag(status);
+
+		if (score < (applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught)) {
+			lose = false;
+			win = true;
+			if (lockedObject->GetTag() == "hold") {
+				keeper->Pathfind(keeper, keeper->GetTransform().GetLocalPosition(), lockedObject, lockedObject->GetTransform().GetLocalPosition(), beHard);
+			}
+		}
+		if (score > (applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught)) {
+			lose = true;
+			win = false;
+			if (goose2p->GetTag() == "hold") {
+				keeper->Pathfind(keeper, keeper->GetTransform().GetLocalPosition(), goose2p, goose2p->GetTransform().GetLocalPosition(), beHard);
+			}
+		}
+		if (score == (applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught)) {
+			lose = true;
+			win = false;
+		}
+		//update
 		server->UpdateServer();
 		if (server->GetClientConnected() && !serverConnectedClient) {
-			//server->Get2pGoosePosition();
 			clientConnectedServer = true;
 			if (serverReceiver->GetClientConnected()) {
 				serverConnectedClient = true;
 			}
+			
 		}
 	}
 	else {
-		renderer->DrawString("Client", Vector2(0, 600));
+		renderer->DrawString("Client", Vector2(0, 620));
 		client->SendPacket(StringPacket("Client says hello!"));
-		
+		//position
+		client->SendPacket(StringPacket("loc," +std::to_string(lockedObject->GetTransform().GetLocalPosition().x) + "," +std::to_string(lockedObject->GetTransform().GetLocalPosition().y) + "," +std::to_string(lockedObject->GetTransform().GetLocalPosition().z) + ","));
+		Vector3 second = clientReceiver->Get2pPosition();
+		goose2p->GetTransform().SetLocalPosition(second);
+		//score
+		client->SendPacket(StringPacket("score," + std::to_string(applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught) + ","));
+		int score = clientReceiver->GetScore();
+		scoreP1 = clientReceiver->GetScore();
+		renderer->DrawString("Oponent Score: " + std::to_string(score), Vector2(0, 600));
+		//state
+		client->SendPacket(StringPacket("state," + lockedObject->GetTag() + ","));
+		string status = clientReceiver->GetState();
+		goose2p->SetTag(status);
+
+		if (score < (applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught)) {
+			lose = false;
+			win = true;
+			if (lockedObject->GetTag() == "hold") {
+				keeper->Pathfind(keeper, keeper->GetTransform().GetLocalPosition(), lockedObject, lockedObject->GetTransform().GetLocalPosition(), beHard);
+			}
+		}
+		if (score > (applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught)) {
+			lose = true;
+			win = false;
+			if (goose2p->GetTag() == "hold") {
+				keeper->Pathfind(keeper, keeper->GetTransform().GetLocalPosition(), goose2p, goose2p->GetTransform().GetLocalPosition(), beHard);
+			}
+		}
+		if (score == (applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught)) {
+			lose = true;
+			win = false;
+		}
+		//update
 		client->UpdateClient();
 		if (client->GetIsConnected() && !serverConnectedClient) {
 			serverConnectedClient = true;
 			client->SendPacket(StringPacket("cc"));
+			
 			client->UpdateClient();
 			clientConnectedServer = true;
 		}
@@ -139,9 +200,9 @@ TutorialGame::~TutorialGame()	{
 	delete renderer;
 	delete world;
 	NetworkBase::Destroy();
-	delete client;
+	//delete client;
 	delete server;
-	delete clientReceiver;
+	//delete clientReceiver;
 	delete serverReceiver;
 }
 bool again=false;
@@ -172,6 +233,12 @@ void TutorialGame::UpdateGame(float dt) {
 						writeScore.close();
 					}
 				}
+				if (win) {
+					renderer->DrawString("You won!", Vector2(180, 200), Vector4(0, 1, 0, 1));
+				}
+				if (lose) {
+					renderer->DrawString("You lost!", Vector2(180, 200),Vector4(1,0,0,1));
+				}
 				renderer->DrawString("TIME UP", Vector2(180, 180));
 				renderer->DrawString("Final Score: " + std::to_string(applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught), Vector2(500, 180));
 				renderer->DrawString("HighScore: " + std::to_string(check), Vector2(500, 200));
@@ -183,7 +250,6 @@ void TutorialGame::UpdateGame(float dt) {
 				if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F1)) {
 					inStart = true;
 					endTimer = 10800;
-					//again = true;
 				}
 				dt = 0;
 
@@ -191,26 +257,13 @@ void TutorialGame::UpdateGame(float dt) {
 			else {
 				endTimer -= 1;
 
-				if (stamina < 100) {
-					stamina += 0.05;
-				}
-				else {
-					stamina = 100;
-				}
-
 				renderer->DrawString("Time left: " + std::to_string(endTimer), Vector2(10, 160));
 				renderer->DrawString("Humans killed: " + std::to_string(killCounter), Vector2(10, 60));
 				renderer->DrawString("Apples Picked: " + std::to_string(applesPicked), Vector2(10, 80));
 				renderer->DrawString("Items Picked: " + std::to_string(itemsPicked), Vector2(10, 100));
-				renderer->DrawString("Score: " + std::to_string(applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught), Vector2(10, 120));
-				renderer->DrawString("Stamina: " + std::to_string(stamina), Vector2(10, 140));
+				renderer->DrawString("Score: " + std::to_string(applesPicked + (itemsPicked * 2) + (killCounter * 3) - caught), Vector2(10, 580));
 				renderer->DrawString("Times Caught: " + std::to_string(caught), Vector2(10, 180), Vector4(1, 0, 0, 1));
-				if (useGravity) {
-					//Debug::Print("(G)ravity on", Vector2(10, 40));
-				}
-				else {
-					//Debug::Print("(G)ravity off", Vector2(10, 40));
-				}
+				
 				if (beHard) {
 					Debug::Print("Press H for easy mode", Vector2(20, 20));
 				}
@@ -225,31 +278,43 @@ void TutorialGame::UpdateGame(float dt) {
 			else {
 				world->GetMainCamera()->UpdateCamera(dt);
 			}
-
+			//pathfinding
+			if (single) {
+				keeper->Pathfind(keeper, keeper->GetTransform().GetLocalPosition(), lockedObject, lockedObject->GetTransform().GetLocalPosition(), beHard);
+			}
+			if (keeper->GetTransform().GetLocalPosition().y <= -30) {
+				keeper->GetTransform().SetLocalPosition(keeper->GetInitPos());
+			}
+			if (lockedObject->GetTag() == "hold") {
+				for (GameObject* i : characters) {
+					i->Pathfind(i, i->GetTransform().GetLocalPosition(), lockedObject, lockedObject->GetTransform().GetLocalPosition(), beHard);
+				}
+			}
 			for (GameObject* i : characters) {
-				i->Pathfind(i, i->GetTransform().GetLocalPosition(), lockedObject, lockedObject->GetTransform().GetLocalPosition(), beHard);
 				if (i->GetTransform().GetLocalPosition().y <= -30) {
 					killCounter++;
 					i->GetTransform().SetLocalPosition(i->GetInitPos());
-					//AddHellKeeperToWorld(Vector3(50, 2, 0));
 				}
-
 			}
 		}
+		else {
+			renderer->DrawString("Waiting for connection...", Vector2(50, 400));
+			renderer->DrawString("Press F1 to reset ", Vector2(50, 290));
+			renderer->DrawString("if unable to connect...", Vector2(50, 260));
+		}
 		
-
 		UpdateKeys();
 		CreateObjects();
 
 
 		if (lockedObject->GetTransform().GetLocalPosition().y < -25) {
-			//InitWorld();
 			lockedObject->GetTransform().SetLocalPosition(lockedObject->GetInitPos());
-			//Respawn();
 		}
 	}
 	else {
 		renderer->DrawString("Single Player", Vector2(50, 450));
+		renderer->DrawString("Client", Vector2(50, 330));
+		renderer->DrawString("Server", Vector2(50, 210));
 	}
 	SelectObject();
 	MoveSelectedObject();
@@ -264,7 +329,6 @@ void TutorialGame::UpdateGame(float dt) {
 void TutorialGame::CreateObjects() {
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::C)) {
 		AddSphereToWorld(world->GetMainCamera()->GetPosition(), 10.0f, 10.0f);
-
 	}
 }
 void TutorialGame::UpdateKeys() {
@@ -275,12 +339,10 @@ void TutorialGame::UpdateKeys() {
 	
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F1)) {
 		inStart = true;
+		clientBool = false;
+		delete clientReceiver;
 		throw 20;
-		//InitWorld(); //We can reset the simulation at any time with F1
-	}
-
-	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F2)) {
-		//InitCamera(); //F2 will reset the camera to a specific default place
+		
 	}
 
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::G)) {
@@ -342,18 +404,17 @@ void TutorialGame::LockedObjectMovement() {
 				pickupItems->GetTransform().SetLocalPosition(pickupItems->GetInitPos());
 				pickupItems->GetPhysicsObject()->SetInverseMass(1);
 				pickupItems->SetBoundingVolume((CollisionVolume*)appleV);
-				lockedObject->SetTag("");
+				lockedObject->SetTag("chilling");
 
 			}
 			if (check->GetName() == "keeper") {
 				lockedObject->GetPhysicsObject()->AddForceAtPosition(Vector3(0,5000,0),lockedObject->GetTransform().GetLocalPosition());
-				//std::cout << check->GetInitPos() << std::endl;
 				caught++;
 				pickupItems->GetTransform().SetParent(saveParent);
 				pickupItems->GetTransform().SetLocalPosition(pickupItems->GetInitPos());
 				pickupItems->GetPhysicsObject()->SetInverseMass(1);
 				pickupItems->SetBoundingVolume((CollisionVolume*)appleV);
-				lockedObject->SetTag("");
+				lockedObject->SetTag("chilling");
 				stunned = true;
 			}
 		}
@@ -399,7 +460,7 @@ void TutorialGame::LockedObjectMovement() {
 			std::cout << "u hold shit" << std::endl;
 		}
 		else {
-			lockedObject->SetTag("");
+			lockedObject->SetTag("chilling");
 			for (GameObject* obj : physics->GetPickupList()) {
 				if (obj->GetName() == "base") {
 					std::cout << "u on base now" << std::endl;
@@ -412,11 +473,10 @@ void TutorialGame::LockedObjectMovement() {
 					pickupItems->GetTransform().SetLocalPosition(byebye);
 					pickupItems->GetPhysicsObject()->SetInverseMass(0);
 					pickupItems->SetBoundingVolume((CollisionVolume*)appleV);
-					stamina = 100;
-					//character->GetTransform().SetLocalPosition(character->GetInitPos());
 					for (GameObject* i : characters) {
 						i->GetTransform().SetLocalPosition(i->GetInitPos());
 					}
+					keeper->GetTransform().SetLocalPosition(keeper->GetInitPos());
 				}
 				else {
 					pickupItems->GetTransform().SetParent(saveParent);
@@ -438,19 +498,13 @@ void TutorialGame::LockedObjectMovement() {
 		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::W)) {//FRWD
 			for (GameObject* obj : physics->GetPickupList()) {
 				if (obj->GetName() == "water") {
-					//std::cout << "u on water now" << std::endl;
-					lockedObject->GetPhysicsObject()->AddForce(fwdAxis * 0.1);
+					lockedObject->GetPhysicsObject()->AddForce(fwdAxis * -2);
 
 				}
 			}
 			if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SHIFT)) {
-				if (stamina > 0) {
-					lockedObject->GetPhysicsObject()->AddForce(fwdAxis * 100);
-					stamina -= 0.5;
-				}
-				else {
-					lockedObject->GetPhysicsObject()->AddForce(fwdAxis * 3);
-				}
+				lockedObject->GetPhysicsObject()->AddForce(fwdAxis * 100);
+				
 			}
 			else {
 				lockedObject->GetPhysicsObject()->AddForce(fwdAxis * 5);
@@ -458,13 +512,7 @@ void TutorialGame::LockedObjectMovement() {
 		}
 		if (Window::GetKeyboard()->KeyDown(KeyboardKeys::S)) {//BWRD
 			if (Window::GetKeyboard()->KeyDown(KeyboardKeys::SHIFT)) {
-				if (stamina > 0) {
-					lockedObject->GetPhysicsObject()->AddForce(-fwdAxis * 10);
-					stamina -= 0.5;
-				}
-				else {
-					lockedObject->GetPhysicsObject()->AddForce(-fwdAxis * 3);
-				}
+				lockedObject->GetPhysicsObject()->AddForce(-fwdAxis * 10);
 			}
 			else {
 				lockedObject->GetPhysicsObject()->AddForce(-fwdAxis * 5);
@@ -472,7 +520,7 @@ void TutorialGame::LockedObjectMovement() {
 		}
 		//fly
 		if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::SPACE)) {
-			lockedObject->GetPhysicsObject()->AddForce(Vector3(0, 2000, 0));
+			lockedObject->GetPhysicsObject()->AddForce(Vector3(0, 4000, 0));
 		}
 		if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::V)) {
 			lockedObject->GetPhysicsObject()->AddForce(Vector3(0, -1000, 0));
@@ -490,7 +538,7 @@ void TutorialGame::LockedObjectMovement() {
 					pickupItems->GetTransform().SetLocalPosition(pickupItems->GetInitPos());
 					pickupItems->GetPhysicsObject()->SetInverseMass(1);
 					pickupItems->SetBoundingVolume((CollisionVolume*)appleV);
-					lockedObject->SetTag("");
+					lockedObject->SetTag("chilling");
 				}
 			}
 		}
@@ -598,11 +646,13 @@ letting you move the camera around.
 bool mouse = false;
 bool TutorialGame::SelectObject() {
 	if (inSelectionMode) {
-		Window::GetWindow()->ShowOSPointer(true);
-		Window::GetWindow()->LockMouseToWindow(false);
+		//Window::GetWindow()->ShowOSPointer(true);
+		//Window::GetWindow()->LockMouseToWindow(false);
 		//started = false;
 	}
-	else {
+	
+	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::NUM6)) {
+		mouse = !mouse;
 		if (!mouse) {
 			Window::GetWindow()->ShowOSPointer(false);
 			Window::GetWindow()->LockMouseToWindow(true);
@@ -611,9 +661,6 @@ bool TutorialGame::SelectObject() {
 			Window::GetWindow()->ShowOSPointer(true);
 			Window::GetWindow()->LockMouseToWindow(false);
 		}
-	}
-	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::NUM6)) {
-		mouse = !mouse;
 	}
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::NUM6)) {
 		inSelectionMode = !inSelectionMode;
@@ -635,6 +682,8 @@ bool TutorialGame::SelectObject() {
 					started = true;
 					inStart = false;
 					inSelectionMode = false;
+					Window::GetWindow()->ShowOSPointer(false);
+					Window::GetWindow()->LockMouseToWindow(true);
 					
 				}
 				if (selection->GetName() == "client") {
@@ -645,6 +694,8 @@ bool TutorialGame::SelectObject() {
 					started = true;
 					inStart = false;
 					inSelectionMode = false;
+					Window::GetWindow()->ShowOSPointer(false);
+					Window::GetWindow()->LockMouseToWindow(true);
 					
 				}
 				if (selection->GetName() == "server") {
@@ -655,6 +706,8 @@ bool TutorialGame::SelectObject() {
 					started = true;
 					inStart = false;
 					inSelectionMode = false;
+					Window::GetWindow()->ShowOSPointer(false);
+					Window::GetWindow()->LockMouseToWindow(true);
 				}
 				return true;
 			}
@@ -737,16 +790,7 @@ void TutorialGame::MoveSelectedObject() {
 	// Push the selected object !
 	
 	if (Window::GetMouse() -> ButtonPressed(NCL::MouseButtons::RIGHT)) {
-		//Ray ray = CollisionDetection::BuildRayFromMouse(* world -> GetMainCamera());
-		//RayCollision closestCollision;
-		//if (world -> Raycast(ray, closestCollision, true)) {
-		//	/*if (closestCollision.node == selectionObject) {
-		//		selectionObject -> GetPhysicsObject() -> AddForce(ray.GetDirection() * forceMagnitude);
-		//	}*/
-		//	if (closestCollision.node == selectionObject) {
-		//		 selectionObject -> GetPhysicsObject() -> AddForceAtPosition(ray.GetDirection() * 100, closestCollision.collidedAt);
-		//	}
-		//}
+		
 		selectionObject = nullptr;
 	}
 }
@@ -766,18 +810,15 @@ void TutorialGame::InitWorld() {
 	killCounter = 0;
 	applesPicked = 0;
 	itemsPicked = 0;
-	stamina = 100;
 	caught = 0;
 	characters.clear();
 	world->ClearAndErase();
 	physics->Clear();
 
-	//InitMixedGridWorld(10, 10, 3.5f, 3.5f);
 	AddGooseToWorld(Vector3(-112, 0, -238));
 	AddAppleToWorld(Vector3(35, 2, 0));
 	AddAppleToWorld(Vector3(-105, -13.9, -200));
 
-	//AddHellKeeperToWorld(Vector3(50, 2, 0));
 	AddParkKeeperToWorld(Vector3(40, 2, 0));
 	AddCharacterToWorld(Vector3(152.607, -16.0649, -44.5025));
 	AddCharacterToWorld(Vector3(152.607 + 10, -16.0649, -44.5025));
@@ -788,11 +829,14 @@ void TutorialGame::InitWorld() {
 	AddIslandToWorld(Vector3(200, -19, 200));
 	AddFloorToWorld(Vector3(0, -19, 0), Vector3(100, 2, 100));
 	AddMiniFloorToWorld(Vector3(0, -19, 0), Vector3(20, 0.1, 50), Vector4(0.25, 0.47, 0.30, 1));
+	AddMiniFloorToWorld(Vector3(100, -17, -100), Vector3(199, 1, 1), Vector4(0.25, 0.47, 0.30, 1));
+	AddMiniFloorToWorld(Vector3(100, -17, 300), Vector3(199, 1, 1), Vector4(0.25, 0.47, 0.30, 1));
+	AddMiniFloorToWorld(Vector3(-100, -17, 100), Vector3(1, 1, 201), Vector4(0.25, 0.47, 0.30, 1));
+	AddMiniFloorToWorld(Vector3(300, -17, 100), Vector3(1, 1, 201), Vector4(0.25, 0.47, 0.30, 1));
 
 	AddTreeToWorld(Vector3(0, -18, 0));
 	AddTreeToWorld(Vector3(0, -17, 250));
 	AddTreeToWorld(Vector3(20, -15, 258));
-	//AddTreeToWorld(Vector3(0, -18, 0));
 
 	AddTrampolineToWorld(Vector3(50, -17, 50), Vector3(4, 0.5, 4), Vector4(0.55, 0.27, 0.07, 1), 20.0f);
 
@@ -916,7 +960,7 @@ GameObject* TutorialGame::AddIslandToWorld(const Vector3& position) {
 	AddTreeToWorld(position + Vector3(-340, 4, -440));
 	//home base
 	AddBaseFloorToWorld(Vector3(-112.015, -13.9, -238.057), Vector3(10, 1, 10), Vector4(0.55, 0.27, 0.07, 1));
-	AddSlopeFloorToWorld(Vector3(-112.015, 10, -238.057), Vector3(2, 7, 2), Vector4(0.55, 0.27, 0.07, 1),0,Vector3(45,0,0));
+	AddSlopeFloorToWorld(Vector3(262.56, -14, 114.163), Vector3(0.1, 20, 8), Vector4(0.55, 0.27, 0.07, 1),0,Vector3(0,0,60));
 	AddSlopeFloorToWorld(Vector3(238.447, 0, 14.7122), Vector3(2, 20, 1), Vector4(0.55, 0.27, 0.07, 1),0,Vector3(-60,0,0));
 	
 	AddAppleToWorld(Vector3(0, 20, 0));
@@ -1042,7 +1086,6 @@ GameObject* TutorialGame::AddTrampolineToWorld(const Vector3& position, const Ve
 	GameObject* trampoline = new GameObject("trampoline");
 
 	Vector3 trampolineSize = size;
-	//Vector3(4, 0.5, 4)
 	AABBVolume* volume = new AABBVolume(trampolineSize);
 	trampoline->SetBoundingVolume((CollisionVolume*)volume);
 	trampoline->GetTransform().SetWorldScale(trampolineSize);
@@ -1197,7 +1240,6 @@ GameObject* TutorialGame::AddMenuToWorld(const Vector3& position, Vector3 dimens
 	menu->GetPhysicsObject()->SetInverseMass(0);
 	menu->GetPhysicsObject()->InitCubeInertia();
 
-	//AddCubeToWorld(position+Vector3(13,4,-2), Vector3(7, 1, 1), 0);
 	AddButtonToWorld(position+Vector3(13,4,-2), Vector3(7, 1, 1),Vector4(0,0,0,1),nullptr,"start");
 	AddButtonToWorld(position+Vector3(13,0,-2), Vector3(7, 1, 1),Vector4(0,0,0,1),nullptr,"client");
 	AddButtonToWorld(position+Vector3(13,-4,-2), Vector3(7, 1, 1),Vector4(0,0,0,1),nullptr,"server");
@@ -1266,7 +1308,7 @@ GameObject* TutorialGame::AddGooseToWorld(const Vector3& position){
 	world->AddGameObject(goose);
 
 	lockedObject = goose;
-	//selectionObject = goose;
+
 	lockedObject->SetInitPos(position);
 	trigger = AddTriggerToWorld(position, Vector3(5, 3, 20),"trigger");
 	picker = AddTrigger2ToWorld(position, 2,"pickup");
@@ -1318,41 +1360,10 @@ GameObject* TutorialGame::AddParkKeeperToWorld(const Vector3& position){
 	keeper->GetPhysicsObject()->SetInverseMass(inverseMass);
 	keeper->GetPhysicsObject()->InitCubeInertia();
 
-
-
 	world->AddGameObject(keeper);
-
-	characters.push_back(keeper);
 
 	return keeper;
 }
-GameObject* TutorialGame::AddHellKeeperToWorld(const Vector3& position){
-	float meshSize = 10.f;
-	float inverseMass = 0.5f;
-
-	GameObject* hellkeeper = new GameObject("hell");
-
-	AABBVolume* volume = new AABBVolume(Vector3(0.3, 0.9f, 0.3) * meshSize);
-	hellkeeper->SetBoundingVolume((CollisionVolume*)volume);
-
-	hellkeeper->GetTransform().SetWorldScale(Vector3(meshSize, meshSize, meshSize));
-	hellkeeper->GetTransform().SetWorldPosition(position);
-
-	hellkeeper->SetInitPos(hellkeeper->GetTransform().GetWorldPosition());
-
-	hellkeeper->SetRenderObject(new RenderObject(&hellkeeper->GetTransform(), keeperMesh, dogeTex, basicShader));
-	hellkeeper->SetPhysicsObject(new PhysicsObject(&hellkeeper->GetTransform(), hellkeeper->GetBoundingVolume(),0.2f));
-
-	hellkeeper->GetPhysicsObject()->SetInverseMass(inverseMass);
-	hellkeeper->GetPhysicsObject()->InitCubeInertia();
-
-	world->AddGameObject(hellkeeper);
-
-	characters.push_back(hellkeeper);
-
-	return hellkeeper;
-}
-
 GameObject* TutorialGame::AddCharacterToWorld(const Vector3& position) {
 	float meshSize = 4.0f;
 	float inverseMass = 0.5f;
@@ -1387,8 +1398,6 @@ GameObject* TutorialGame::AddCharacterToWorld(const Vector3& position) {
 
 	world->AddGameObject(character);
 
-	//chaser = AddTriggerToWorld(position, Vector3(40, 40, 40), "chaser");
-
 	characters.push_back(character);
 	
 	return character;
@@ -1410,8 +1419,6 @@ GameObject* TutorialGame::AddAppleToWorld(const Vector3& position) {
 	apple->GetRenderObject()->SetColour(Vector4(1, 0, 0, 1));
 	apple->GetPhysicsObject()->SetInverseMass(1.0f);
 	apple->GetPhysicsObject()->InitSphereInertia();
-
-	
 
 	world->AddGameObject(apple);
 
@@ -1469,11 +1476,9 @@ void TutorialGame::BridgeConstraintTest() {
 	GameObject* end = AddSlopeFloorToWorld(startPos + Vector3((numLinks + 2) * cubeDistance, 0, 40), cubeSize, Vector4(0.55, 0.27, 0.07, 1), 0, Vector3(0, 0, 0));
 	Vector3 endPos = Vector3(startPos + Vector3((numLinks + 2) * cubeDistance,3,0));
 	GameObject* previous = start;
-	//renderer->DrawLine(startPos, endPos, Vector4(1, 0, 0, 1));
 	for (int i = 0; i < numLinks; ++i) {
 		
 		GameObject* block = AddSlopeFloorToWorld(startPos + Vector3((i + 1) * cubeDistance, 0, 0),cubeSize,Vector4(0.55, 0.27, 0.07, 1),1, Vector3(0, 0, 0));
-
 
 		PositionConstraint* constraint = new PositionConstraint(previous, block, maxDistance);
 

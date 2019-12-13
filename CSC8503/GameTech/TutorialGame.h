@@ -15,26 +15,63 @@ namespace NCL {
 			void ReceivePacket(int type, GamePacket* payload, int source) {
 				if (type == String_Message) {
 					StringPacket* realPacket = (StringPacket*)payload;
+					size_t pos = 0;
 					string msg = realPacket->GetStringFromData();
-
+					string delimiter = ",";
+					string token = msg.substr(0, msg.find(delimiter));
+					vector<string> vec;
 					std::cout << name << " received message : " << msg << std::endl;
 					if (msg == "cc") {
 						clientConnected = true;
 					}
-					if (msg == "oo") {
-						goose2p->GetRenderObject()->SetColour(Vector4(1,0,0,1));
+
+					if (token == "loc") {
+						while ((pos = msg.find(delimiter)) != std::string::npos) {
+							string token = msg.substr(0, pos);
+							vec.push_back(token);
+							msg.erase(0, pos + delimiter.length());
+						}
+						int x = stoi(vec[1]);
+						int y = stoi(vec[2]);
+						int z = stoi(vec[3]);
+						Vector3 position = Vector3(x, y, z);
+						goose2pPos = position;
+					}
+					if (token == "score") {
+						while ((pos = msg.find(delimiter)) != std::string::npos) {
+							string token = msg.substr(0, pos);
+							vec.push_back(token);
+							msg.erase(0, pos + delimiter.length());
+						}
+						int x = stoi(vec[1]);
+						score = x;
+						
+					}
+					if (token == "state") {
+						while ((pos = msg.find(delimiter)) != std::string::npos) {
+							string token = msg.substr(0, pos);
+							vec.push_back(token);
+							msg.erase(0, pos + delimiter.length());
+						}
+						
+						state = vec[1];
+
 					}
 				}
 			}
 			bool GetClientConnected() {
 				return clientConnected;
 			}
-			Vector3 Get2pPosition() {
-				return goose2p->GetTransform().GetLocalPosition();
-			}
+			Vector3 Get2pPosition() const { return goose2pPos; }
+
+			int GetScore() { return score; }
+			
+			string GetState() { return state; }
 		protected:
 			string name;
-			GameObject* goose2p;
+			string state;
+			Vector3 goose2pPos;
+			int score;
 			bool clientConnected;
 		};
 
@@ -44,7 +81,7 @@ namespace NCL {
 			~TutorialGame();
 
 			virtual void UpdateGame(float dt);
-
+			
 		protected:
 			bool beHard;
 
@@ -93,7 +130,13 @@ namespace NCL {
 			GameObject* pickupItems;
 
 			GameObject* menu = new GameObject("menu");
+			bool win;
+			bool lose;
 
+			int scoreP2;
+			int scoreP1;
+			bool chaseP1;
+			GameObject* whoToChase;
 			GameObject* state;
 
 			/*GameObject* start, * block, *end;
@@ -179,7 +222,6 @@ namespace NCL {
 			int killCounter=0;
 			int applesPicked = 0;
 			int itemsPicked = 0;
-			float stamina = 100;
 			int caught = 0;
 			int endTimer=10800;
 			Vector3 lockedOffset = Vector3(0, 14, 20);

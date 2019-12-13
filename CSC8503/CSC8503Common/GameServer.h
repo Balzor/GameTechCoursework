@@ -27,13 +27,15 @@ namespace NCL {
 			bool GetClientConnected() {
 				return clientConnected;
 			}
-
+			
 		protected:
 			int			port;
 			int			clientMax;
 			int			clientCount;
 			GameWorld*	gameWorld;
 			bool clientConnected;
+
+			//Vector3 goose2pPos;
 			//std::atomic<bool> threadAlive;
 
 			

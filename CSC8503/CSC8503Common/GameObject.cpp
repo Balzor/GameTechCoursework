@@ -77,8 +77,8 @@ void GameObject::Pathfind(GameObject* chaserObj,Vector3 chaserPos, GameObject* g
 	testNodes.clear();
 	NavigationPath outPath;
 
-	Vector3 startPos(chaserPos.x+90,0,chaserPos.z+90);
-	Vector3 endPos(goose.x + 90, 0, goose.z + 90);
+	Vector3 startPos(chaserPos.x+100,0,chaserPos.z+100);
+	Vector3 endPos(goose.x + 100, 0, goose.z + 100);
 	
 	bool found = grid->FindPath(startPos, endPos, outPath);
 	//Matrix4 vie2 = chaserObj->GetTransform().GetWorldMatrix().BuildViewMatrix(chaserPos, goose,Vector3(0,0,0));
@@ -89,9 +89,9 @@ void GameObject::Pathfind(GameObject* chaserObj,Vector3 chaserPos, GameObject* g
 	
 	Vector3 pos;
 	while (outPath.PopWaypoint(pos)) {
-		pos.x = pos.x - 90;
+		pos.x = pos.x - 99;
 		pos.y = -14;
-		pos.z = pos.z - 90;
+		pos.z = pos.z - 99;
 		testNodes.push_back(pos);
 	}
 	for (int i = 1; i < testNodes.size(); ++i) {
@@ -108,7 +108,13 @@ void GameObject::Pathfind(GameObject* chaserObj,Vector3 chaserPos, GameObject* g
 					chaserObj->SetTag("chasing");
 					Debug::DrawLine(a, b, Vector4(1, 0, 0, 1));
 					if (hard != true) {
-						chaserObj->GetPhysicsObject()->AddForce(-fwdAxis);
+						if (chaserPos.x > goose.x) {
+							chaserObj->GetPhysicsObject()->AddForce(-fwdAxis);
+						}
+						else {
+							chaserObj->GetPhysicsObject()->AddForce(-fwdAxis);
+						}
+						
 
 						if (chaserPos.z > goose.z) {
 							chaserObj->GetPhysicsObject()->AddForce(Vector3(0, 0, -50));
