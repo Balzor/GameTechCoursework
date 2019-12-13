@@ -31,9 +31,9 @@ namespace NCL {
 							vec.push_back(token);
 							msg.erase(0, pos + delimiter.length());
 						}
-						int x = stoi(vec[1]);
-						int y = stoi(vec[2]);
-						int z = stoi(vec[3]);
+						float x = stof(vec[1]);
+						float y = stof(vec[2]);
+						float z = stof(vec[3]);
 						Vector3 position = Vector3(x, y, z);
 						goose2pPos = position;
 					}
